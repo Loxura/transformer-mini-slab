@@ -6,7 +6,7 @@
 (defpoll ssid     :interval "30s"   `iw dev wlp1s0 link 2>/dev/null | sed -n 's/.*SSID: //p'`)
 (defpoll ipaddr   :interval "30s"   `ip -4 -o addr show wlp1s0 2>/dev/null | awk '{print $4}' | head -1`)
 (defpoll clockimg :interval "20s"   `~/.local/bin/analog-clock`)
-(defpoll events   :interval "300s"  `cat ~/.config/eww/events.txt 2>/dev/null`)
+(defpoll events   :interval "600s"  `python3 ~/.local/bin/gcal-events.py 2>/dev/null`)
 (deflisten ticker :initial "loading markets…" `~/.local/bin/stock-ticker`)
 
 (defwidget topbar []
