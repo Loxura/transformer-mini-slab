@@ -6,8 +6,17 @@ and the lightest possible design (which happens to suit the Cherry Trail GPU).
 
 ## Modes (swipe order)
 1. **Dash (home)** — eww widgets: clock, weather, now-playing mini, system, calendar, toggles.
-2. **Now Playing** — the music view: cava heartbeat + rmpc track info.
+2. **Now Playing** — a touch "now-playing card": big album art, large skip/play buttons,
+   and a palette pulled live from the cover (see exception note below).
 3. **Video** — mpv + yt-dlp (VA-API hardware decode for 1080p).
+
+> **Aesthetic exception — Now Playing is colour-adaptive.** The rest of the slab is e-ink
+> (paper/ink, monochrome; see [aesthetic.md](aesthetic.md)). The Now Playing panel deliberately
+> breaks that: it's a 2010s-Spotify-style card whose background/accents are derived from the
+> current album cover. Built in its **own self-contained eww config** (`eww -c ~/.config/eww-music`,
+> separate daemon) so it never collides with the Dash eww. Engine + UI live under `music-card/`.
+> Owned separately from the Dash ricing. Art comes from the album's local `cover.jpg` (Lidarr now
+> writes one per album) with a Cover Art Archive fallback via the MusicBrainz album ID in the tags.
 
 ```
  ●  ○  ○

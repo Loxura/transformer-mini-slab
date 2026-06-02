@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""now-playing feed for the eww music card.
+
+Emits one JSON object per line with the current track, a resolved album-art path, and a
+colour palette derived from that cover (Spotify-box style). Designed for eww `deflisten`.
+
+Dependencies: python3 stdlib + ffmpeg/ffprobe (image decode, embedded-art extract, tags).
+No Pillow/pip/curl needed.
+
+Art resolution order, cached per album under ~/.cache/music-card/art/<key>.{jpg,json}:
+  1. local cover file in the album folder (cover.* / folder.* / front.* / any jpg|png)
+  2. embedded picture in the audio file (via ffmpeg)
+  3. Cover Art Archive, by the MUSICBRAINZ_ALBUMID tag (front-500)
+
+Usage:
+  np-now            # loop: emit JSON every second (for eww deflisten)
+  np-now --once     # emit one JSON object and exit (for testing)
+"""
+import json, os, sys, socket, subprocess, hashlib, urllib.request, glob, shutil, time
+
+MUSIC_DIR = os.path.expanduser("~/Music")
+CACHE     = os.path.expanduser("~/.cache/music-card")
+ART_DIR   = os.path.join(CACHE, "art")
+MPD_HOST, MPD_PORT = "127.0.0.1", 6600
+UA = "transformer-mini-slab-music-card/1.0 ( https://github.com/Loxura/transformer-mini-slab )"
+DEFAULT_COLORS = {"bg": "#161616", "accent": "#45577a", "accent2": "#34425e",
+                  "text": "#f4f1ea", "muted": "#9a9a9a", "avg": "#3a3a3a"}
+
+os.makedirs(ART_DIR, exist_ok=True)
+
+
+# ---- mpd (raw protocol over TCP) --------------------------------------------
+def mpd_connect():
+    s = socket.create_connection((MPD_HOST, MPD_PORT), 5)
+    f = s.makefile("rwb")
+    f.readline()  # banner: OK MPD <ver>
+    return s, f
+
+def mpd_cmd(f, cmd):
+    f.write((cmd + "\n").encode()); f.flush()
+    pairs = []
+    while True:
+        line = f.readline()
+        if not line:
+            break
+        line = line.decode("utf-8", "replace").rstrip("\n")
+        if line.startswith("OK") or line.startswith("ACK"):
+            break
+        if ": " in line:
+            k, v = line.split(": ", 1)
+            pairs.append((k, v))
+    d = {}
+    for k, v in pairs:
+        d.setdefault(k, v)
+    return d
+
+
+# ---- colour helpers ----------------------------------------------------------
+def rgb_to_hsv(r, g, b):
+    r, g, b = r / 255, g / 255, b / 255
+    mx, mn = max(r, g, b), min(r, g, b); d = mx - mn
+    v = mx; s = 0 if mx == 0 else d / mx
+    if d == 0:    h = 0
+    elif mx == r: h = ((g - b) / d) % 6
+    elif mx == g: h = ((b - r) / d) + 2
+    else:         h = ((r - g) / d) + 4
+    return h * 60, s, v
+
+def hsv_to_rgb(h, s, v):
+    h = (h % 360) / 60; c = v * s; x = c * (1 - abs(h % 2 - 1)); m = v - c
+    rgb = [(c, x, 0), (x, c, 0), (0, c, x), (0, x, c), (x, 0, c), (c, 0, x)][int(h) % 6]
+    return tuple(max(0, min(255, round((z + m) * 255))) for z in rgb)
+
+def hexc(rgb): return "#%02x%02x%02x" % tuple(rgb)
+def lum(rgb):  r, g, b = [c / 255 for c in rgb]; return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+def read_pixels(path, size=16):
+    """Decode + downscale the cover to size*size and return a list of (r,g,b)."""
+    try:
+        raw = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", path, "-vf", f"scale={size}:{size}:flags=area",
+             "-pix_fmt", "rgb24", "-f", "rawvideo", "-"],
+            capture_output=True, timeout=20).stdout
+    except Exception:
+        raw = b""
+    return [(raw[i], raw[i + 1], raw[i + 2]) for i in range(0, len(raw) - 2, 3)]
+
+def derive_palette(pixels):
+    if not pixels:
+        return dict(DEFAULT_COLORS)
+    n = len(pixels)
+    avg = tuple(sum(p[i] for p in pixels) // n for i in range(3))
+    # accent = the most "alive" pixel (saturation*value), ignoring near-black/white
+    def pop(p):
+        h, s, v = rgb_to_hsv(*p)
+        return s * v if 0.12 < v < 0.97 else 0
+    accent = max(pixels, key=pop)
+    ah, as_, av = rgb_to_hsv(*accent)
+    if as_ < 0.18:                                   # near-grayscale cover -> ink-blue accent
+        accent = (0x45, 0x57, 0x7a); ah, as_, av = rgb_to_hsv(*accent)
+    accent  = hsv_to_rgb(ah, min(1, as_ * 1.15), max(av, 0.62))   # bold it a touch
+    accent2 = hsv_to_rgb(ah, min(1, as_ * 0.85), max(av * 0.7, 0.4))
+    # background = deep, faintly album-tinted dark card
+    bh, bs, bv = rgb_to_hsv(*avg)
+    bg    = hsv_to_rgb(bh, min(bs * 0.85, 0.45), 0.12)
+    text  = (0xf4, 0xf1, 0xea) if lum(bg) < 0.45 else (0x1b, 0x1b, 0x1b)
+    muted = hsv_to_rgb(bh, min(bs * 0.5, 0.28), 0.60)
+    return {"bg": hexc(bg), "accent": hexc(accent), "accent2": hexc(accent2),
+            "text": hexc(text), "muted": hexc(muted), "avg": hexc(avg)}
+
+
+# ---- art resolution ----------------------------------------------------------
+def file_tag(uri, tag):
+    path = os.path.join(MUSIC_DIR, uri)
+    if not os.path.isfile(path):
+        return ""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", f"format_tags={tag}",
+             "-of", "default=nw=1:nk=1", path],
+            capture_output=True, text=True, timeout=15).stdout.strip()
+        return out.splitlines()[0].split(";")[0].strip() if out else ""
+    except Exception:
+        return ""
+
+def album_key(song):
+    mbid = file_tag(song.get("file", ""), "MUSICBRAINZ_ALBUMID")
+    if mbid:
+        return "mb_" + mbid
+    base = (song.get("AlbumArtist") or song.get("Artist", "")) + "|" + song.get("Album", "")
+    return "h_" + hashlib.sha1(base.encode()).hexdigest()[:16]
+
+def resolve_art(song, key):
+    dst = os.path.join(ART_DIR, key + ".jpg")
+    if os.path.isfile(dst) and os.path.getsize(dst) > 0:
+        return dst
+    uri = song.get("file", "")
+    album_dir = os.path.dirname(os.path.join(MUSIC_DIR, uri))
+    # 1) a cover image sitting next to the tracks
+    for pat in ("cover.*", "folder.*", "front.*", "*.jpg", "*.jpeg", "*.png"):
+        for hit in sorted(glob.glob(os.path.join(album_dir, pat))):
+            if hit.lower().endswith((".jpg", ".jpeg", ".png")):
+                try: shutil.copyfile(hit, dst); return dst
+                except Exception: pass
+    # 2) embedded picture
+    path = os.path.join(MUSIC_DIR, uri)
+    if os.path.isfile(path):
+        try:
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", path,
+                            "-an", "-frames:v", "1", dst],
+                           capture_output=True, timeout=25)
+            if os.path.isfile(dst) and os.path.getsize(dst) > 0:
+                return dst
+        except Exception:
+            pass
+    # 3) Cover Art Archive by MusicBrainz album id
+    if key.startswith("mb_"):
+        mbid = key[3:]
+        for url in (f"https://coverartarchive.org/release/{mbid}/front-500",
+                    f"https://coverartarchive.org/release-group/{mbid}/front-500"):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": UA})
+                data = urllib.request.urlopen(req, timeout=20).read()
+                if data:
+                    with open(dst, "wb") as fh: fh.write(data)
+                    return dst
+            except Exception:
+                continue
+    return ""
+
+
+# ---- assembly ----------------------------------------------------------------
+def mmss(sec):
+    sec = int(sec or 0); return f"{sec // 60}:{sec % 60:02d}"
+
+def build(f, st):
+    song   = mpd_cmd(f, "currentsong")
+    status = mpd_cmd(f, "status")
+    uri    = song.get("file", "")
+    key    = album_key(song) if uri else ""
+    if key and st.get("key") != key:
+        art = resolve_art(song, key)
+        pal_path = os.path.join(ART_DIR, key + ".json")
+        if art:
+            colors = derive_palette(read_pixels(art))
+            try: json.dump(colors, open(pal_path, "w"))
+            except Exception: pass
+        else:
+            colors = dict(DEFAULT_COLORS)
+        st.update(key=key, art=art, colors=colors)
+    art    = st.get("art", "")
+    colors = st.get("colors", dict(DEFAULT_COLORS))
+    elapsed = float(status.get("elapsed", 0) or 0)
+    dur     = float(status.get("duration", 0) or song.get("Time", 0) or 0)
+    return {
+        "state":     status.get("state", "stop"),
+        "title":     song.get("Title") or (os.path.basename(uri) if uri else "—"),
+        "artist":    song.get("Artist", ""),
+        "album":     song.get("Album", ""),
+        "date":      song.get("Date", "")[:4],
+        "art":       art,
+        "elapsed":   round(elapsed), "duration": round(dur),
+        "elapsed_str": mmss(elapsed), "duration_str": mmss(dur),
+        "progress":  round(100 * elapsed / dur) if dur else 0,
+        "volume":    status.get("volume", "n/a"),
+        "colors":    colors,
+    }
+
+
+def main():
+    once = "--once" in sys.argv[1:]
+    st = {}
+    while True:
+        try:
+            s, f = mpd_connect()
+            try:
+                while True:
+                    sys.stdout.write(json.dumps(build(f, st)) + "\n")
+                    sys.stdout.flush()
+                    if once:
+                        return
+                    time.sleep(1)
+            finally:
+                s.close()
+        except Exception as e:
+            if once:
+                sys.stdout.write(json.dumps({"state": "error", "title": str(e),
+                                             "colors": DEFAULT_COLORS}) + "\n")
+                sys.stdout.flush(); return
+            time.sleep(2)
+
+
+if __name__ == "__main__":
+    main()

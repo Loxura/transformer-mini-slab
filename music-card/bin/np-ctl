@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Touch controls for the now-playing card -> mpd / pipewire.
+# Transport goes to mpd over TCP (no XDG needed); volume uses wpctl (mpd has no mixer).
+set -euo pipefail
+M=(mpc -h 127.0.0.1 -p 6600)
+SINK="@DEFAULT_AUDIO_SINK@"
+
+case "${1:-}" in
+  toggle) "${M[@]}" toggle >/dev/null ;;
+  play)   "${M[@]}" play   >/dev/null ;;
+  pause)  "${M[@]}" pause  >/dev/null ;;
+  next)   "${M[@]}" next   >/dev/null ;;
+  prev)   "${M[@]}" prev   >/dev/null ;;
+  seek)   "${M[@]}" seek "${2:?usage: np-ctl seek +10|-10|50%}" >/dev/null ;;
+  vol)    wpctl set-volume "$SINK" "${2:?usage: np-ctl vol 5%+|5%-|0.7}" ;;
+  volget) wpctl get-volume "$SINK" | awk '{printf "%d\n", $2*100}' ;;
+  *) echo "usage: np-ctl {toggle|play|pause|next|prev|seek <pos>|vol <amt>|volget}" >&2; exit 2 ;;
+esac
