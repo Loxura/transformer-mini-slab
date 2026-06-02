@@ -1,0 +1,55 @@
+# transformer-mini-slab — PC-side music fetcher (runs on the main PC, NOT the tablet)
+# Lidarr (music mgmt) + Prowlarr (indexers) + qBittorrent (downloads) + Syncthing (-> tablet).
+# Flow: qBittorrent -> ./downloads -> Lidarr imports/organises -> ./library -> Syncthing -> tablet ~/Music
+#
+# Set TZ to your timezone. Then:  docker compose up -d
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment: { PUID: "1000", PGID: "1000", TZ: "Etc/UTC" }
+    volumes:
+      - ./config/prowlarr:/config
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment: { PUID: "1000", PGID: "1000", TZ: "Etc/UTC", WEBUI_PORT: "8080" }
+    volumes:
+      - ./config/qbittorrent:/config
+      - ./downloads:/downloads
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    restart: unless-stopped
+
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    environment: { PUID: "1000", PGID: "1000", TZ: "Etc/UTC" }
+    volumes:
+      - ./config/lidarr:/config
+      - ./library:/music        # organised library (Syncthing shares this)
+      - ./downloads:/downloads  # must match qBittorrent's path for imports
+    ports:
+      - "8686:8686"
+    restart: unless-stopped
+
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: music-server
+    environment: { PUID: "1000", PGID: "1000", TZ: "Etc/UTC" }
+    volumes:
+      - ./config/syncthing:/config
+      - ./library:/library      # the folder to sync to the tablet
+    ports:
+      - "8384:8384"             # web UI
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+      - "21027:21027/udp"
+    restart: unless-stopped
