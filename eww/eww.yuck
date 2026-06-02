@@ -1,24 +1,31 @@
-;; transformer-mini-slab — Dash (dark, utility-driven). Background layer: shows on the
-;; empty Dash workspace, sits behind app windows on the others.
+;; transformer-mini-slab — Dash (dark, full-screen, utility). Top bar + body layout.
+;; Background layer: shows on the empty Dash workspace, behind app windows elsewhere.
 
 (defpoll time     :interval "10s"   `date +"%H:%M"`)
-(defpoll date     :interval "300s"  `date +"%A, %d %B"`)
+(defpoll date     :interval "300s"  `date +"%a %d %b"`)
 (defpoll weather  :interval "1800s" `curl -s 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null || wget -qO- 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null`)
 (defpoll ssid     :interval "30s"   `iw dev wlp1s0 link 2>/dev/null | sed -n 's/.*SSID: //p'`)
-(defpoll netstate :interval "30s"   `cat /sys/class/net/wlp1s0/operstate 2>/dev/null`)
 (defpoll ipaddr   :interval "30s"   `ip -4 -o addr show wlp1s0 2>/dev/null | awk '{print $4}' | head -1`)
+(deflisten ticker :initial "loading markets…" `~/.local/bin/stock-ticker`)
 
-(defwidget dash []
-  (box :class "dash" :orientation "v" :space-evenly false :valign "center" :halign "center"
-    (label :class "clock" :text time)
-    (label :class "date"  :text date)
-    (box :class "card weather-card"
-      (label :class "weather" :text {weather != "" ? weather : "weather unavailable"}))
-    (box :class "card net-card" :orientation "v" :space-evenly false
-      (label :class "net-ssid" :halign "start"
-             :text {ssid != "" ? "WiFi   ${ssid}" : (netstate == "up" ? "WiFi   connected" : "WiFi   offline")})
-      (label :class "net-ip" :halign "start"
-             :text {ipaddr != "" ? "IP     ${ipaddr}" : "IP     —"}))))
+(defwidget topbar []
+  (box :class "topbar" :orientation "h" :space-evenly false :valign "start"
+    (label :class "tb-clock" :text time)
+    (box :hexpand true)
+    (label :class "tb-item" :text date)
+    (label :class "tb-sep"  :text "•")
+    (label :class "tb-item" :text {weather != "" ? weather : "—"})
+    (label :class "tb-sep"  :text "•")
+    (label :class "tb-item" :text {ssid != "" ? ssid : "WiFi"})
+    (label :class "tb-ip"   :text {ipaddr != "" ? ipaddr : ""})))
+
+(defwidget body []
+  (box :class "body" :orientation "h" :space-evenly true :vexpand true
+    (box :class "card cal-card" :valign "center" :halign "center"
+      (calendar :class "cal"))
+    (box :class "card ticker-card" :orientation "v" :space-evenly false :valign "center" :halign "center"
+      (label :class "ticker-h" :text "MARKETS")
+      (label :class "ticker"   :text ticker))))
 
 (defwindow dashboard
   :monitor 0
@@ -26,4 +33,6 @@
   :exclusive false
   :focusable false
   :geometry (geometry :width "100%" :height "100%" :anchor "center")
-  (dash))
+  (box :class "dash" :orientation "v" :space-evenly false
+    (topbar)
+    (body)))

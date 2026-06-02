@@ -1,4 +1,4 @@
-// transformer-mini-slab — Dash styling (dark / utility). Tokyo-night-ish palette.
+// transformer-mini-slab — Dash styling (dark / utility, full-screen). Tokyo-night-ish.
 * {
   all: unset;
   font-family: "JetBrains Mono", monospace;
@@ -7,22 +7,37 @@
 .dash {
   background-color: #16161e;
   color: #c0caf5;
-  padding: 50px;
+  padding: 44px 40px 36px 40px;   // top pad clears the waybar strip
 }
 
-.clock { font-size: 128px; font-weight: bold; color: #c0caf5; }
-.date  { font-size: 26px;  color: #7aa2f7; margin-bottom: 36px; }
+/* ---- top bar ---- */
+.topbar {
+  font-size: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #292e42;
+}
+.tb-clock { font-size: 30px; font-weight: bold; color: #c0caf5; }
+.tb-item  { color: #9aa5ce; margin: 0 10px; }
+.tb-sep   { color: #3b4261; }
+.tb-ip    { color: #565f89; margin-left: 14px; }
+
+/* ---- body ---- */
+.body { margin-top: 34px; }
 
 .card {
   background-color: #1a1b26;
   border: 1px solid #292e42;
-  border-radius: 16px;
-  padding: 16px 28px;
-  margin: 10px 0;
-  min-width: 380px;
+  border-radius: 18px;
+  padding: 28px 34px;
+  margin: 0 18px;
 }
 
-.weather-card .weather { font-size: 24px; color: #9ece6a; }
+/* calendar */
+.cal             { font-size: 16px; color: #c0caf5; }
+.cal:selected    { background-color: #7aa2f7; color: #16161e; border-radius: 8px; }
+.cal.header      { color: #7aa2f7; }
 
-.net-ssid { font-size: 19px; color: #c0caf5; }
-.net-ip   { font-size: 17px; color: #565f89; margin-top: 6px; }
+/* markets ticker */
+.ticker-card { min-width: 420px; }
+.ticker-h    { font-size: 14px; color: #7aa2f7; margin-bottom: 16px; }
+.ticker      { font-size: 44px; font-weight: bold; color: #9ece6a; }
