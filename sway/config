@@ -27,7 +27,7 @@ set $ws3 "3:Video"
 
 ### AUTOSTART — one app per mode #############################################
 exec waybar
-exec foot -a dash                 # Dash placeholder (eww widgets come later)
+exec foot -a dash btop            # Dash: live system monitor (eww widgets come later)
 exec foot -a music ncmpcpp        # Now Playing (ncmpcpp has a built-in visualiser)
 for_window [app_id="dash"]  move to workspace $ws1
 for_window [app_id="music"] move to workspace $ws2
