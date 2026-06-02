@@ -11,4 +11,11 @@ case "$1" in
   prev) n=$((cur-1)); [ "$n" -lt 1 ] && n=3 ;;
   *)    exit 1 ;;
 esac
-exec swaymsg workspace number "$n"
+# Target the NAMED workspace so its label (Dash/Music/Video) survives re-creation —
+# `workspace number N` would recreate a bare "1"/"2"/"3" and waybar would lose the name.
+case "$n" in
+  1) ws="1:Dash" ;;
+  2) ws="2:Music" ;;
+  3) ws="3:Video" ;;
+esac
+exec swaymsg workspace "$ws"
