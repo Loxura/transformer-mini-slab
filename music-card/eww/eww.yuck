@@ -44,12 +44,16 @@
             :style "color: ${np.colors.text};" "__NEXT__")))
 
 (defwidget card []
-  (box :class "card" :orientation "v" :space-evenly false :spacing 40 :valign "center"
+  ;; full-bleed background paints the whole screen (covers ncmpcpp underneath);
+  ;; inner box centres the content.
+  (box :class "card-bg" :hexpand true :vexpand true
        :style "background-color: ${np.colors.bg};"
-    (box :class "top" :orientation "h" :space-evenly false :spacing 48 :halign "center" :valign "center"
-      (cover)
-      (meta))
-    (controls)))
+    (box :class "card" :orientation "v" :space-evenly false :spacing 40
+         :halign "center" :valign "center" :hexpand true :vexpand true
+      (box :class "top" :orientation "h" :space-evenly false :spacing 48 :halign "center" :valign "center"
+        (cover)
+        (meta))
+      (controls))))
 
 (defwindow music
   :monitor 0
