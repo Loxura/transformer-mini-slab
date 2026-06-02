@@ -9,6 +9,11 @@ Thumbs.db
 *.bak
 .env
 
+# *arr / slskd / qBittorrent runtime state (contains API keys & credentials)
+server/config/
+server/downloads/
+server/library/
+
 # never commit the music library itself
 /music/
 *.mp3

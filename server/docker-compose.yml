@@ -16,12 +16,14 @@ services:
       WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY}"
       WIREGUARD_ADDRESSES: "${WIREGUARD_ADDRESSES}"
       SERVER_COUNTRIES: "${VPN_COUNTRY:-Canada}"
-      FIREWALL_OUTBOUND_SUBNETS: "172.16.0.0/12"   # let Lidarr reach qBit's webui via gluetun
+      FIREWALL_OUTBOUND_SUBNETS: "172.16.0.0/12"   # let Lidarr/soularr reach qBit + slskd via gluetun
       TZ: "America/Winnipeg"
     ports:
       - "8080:8080"          # qBittorrent web UI (published on gluetun)
       - "6881:6881"          # torrent port
       - "6881:6881/udp"
+      - "5030:5030"          # slskd web UI (published on gluetun)
+      - "5031:5031"          # slskd https
     restart: unless-stopped
 
   qbittorrent:
@@ -34,6 +36,43 @@ services:
       - ./downloads:/downloads
     depends_on:
       - gluetun
+    restart: unless-stopped
+
+  # slskd shares gluetun's netns -> all Soulseek traffic exits via Mullvad (kill-switched).
+  # NOTE: Mullvad has no port forwarding, so slskd cannot accept INCOMING peer connections;
+  # downloads work (outbound), uploads only reach peers that have open ports.
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    network_mode: "service:gluetun"     # <-- Soulseek traffic routed through the VPN
+    user: "1000:1000"
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_UMASK=0022
+    volumes:
+      - /home/ayub/soulseek/slskd-config:/app
+      - /home/ayub/soulseek/downloads:/downloads
+    depends_on:
+      - gluetun
+    restart: unless-stopped
+
+  soularr:
+    image: mrusse08/soularr:latest
+    container_name: soularr
+    user: "1000:1000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Winnipeg
+      - SCRIPT_INTERVAL=300
+      - WEBUI_ENABLED=true
+    ports:
+      - "8265:8265"           # Soularr UI
+    volumes:
+      - /home/ayub/soulseek/downloads:/downloads
+      - /home/ayub/soulseek/soularr-config:/data
+    depends_on:
+      - slskd
     restart: unless-stopped
 
   prowlarr:
@@ -54,6 +93,7 @@ services:
       - ./config/lidarr:/config
       - ./library:/music        # Lidarr root folder = staging (shipped + flushed)
       - ./downloads:/downloads  # must match qBittorrent's path
+      - /home/ayub/soulseek/downloads:/slskd  # slskd's completed downloads (soularr imports from here)
     ports:
       - "8686:8686"
     restart: unless-stopped
