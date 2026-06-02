@@ -18,10 +18,10 @@ the WSL→tablet SSH key is already set up).
 
 ## VPN — qBittorrent behind Mullvad (gluetun, kill-switched)
 qBittorrent runs inside gluetun's network namespace, so torrent traffic exits **only** through
-Mullvad WireGuard; if the tunnel drops, qBit is cut off (no IP leak). Prowlarr/Lidarr use the
+Mullvad (OpenVPN); if the tunnel drops, qBit is cut off (no IP leak). Prowlarr/Lidarr use the
 normal connection (just searches/metadata).
-1. Mullvad → **Account → WireGuard configuration** → generate a key; note the **PrivateKey** + **Address**.
-2. `cp .env.example .env`, paste them in. **`.env` is gitignored — never commit it.**
+1. `cp .env.example .env` and set **OPENVPN_USER** to your Mullvad **account number** (16 digits).
+2. **`.env` is gitignored — never commit it.**
 
 ## Run
 ```sh
