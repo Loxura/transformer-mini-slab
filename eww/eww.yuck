@@ -1,24 +1,24 @@
-;; transformer-mini-slab — Dash (e-ink). Background layer: shows on the empty
-;; Dash workspace, sits behind app windows on the others.
+;; transformer-mini-slab — Dash (dark, utility-driven). Background layer: shows on the
+;; empty Dash workspace, sits behind app windows on the others.
 
-(defpoll time     :interval "10s"  `date +"%H:%M"`)
-(defpoll date     :interval "300s" `date +"%A, %d %B"`)
-(defpoll track    :interval "2s"   `mpc current 2>/dev/null`)
-(defpoll batt     :interval "60s"  `cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1`)
-(defpoll charging :interval "60s"  `cat /sys/class/power_supply/BAT*/status 2>/dev/null | head -1`)
+(defpoll time     :interval "10s"   `date +"%H:%M"`)
+(defpoll date     :interval "300s"  `date +"%A, %d %B"`)
+(defpoll weather  :interval "1800s" `curl -s 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null || wget -qO- 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null`)
+(defpoll ssid     :interval "30s"   `iw dev wlp1s0 link 2>/dev/null | sed -n 's/.*SSID: //p'`)
+(defpoll netstate :interval "30s"   `cat /sys/class/net/wlp1s0/operstate 2>/dev/null`)
+(defpoll ipaddr   :interval "30s"   `ip -4 -o addr show wlp1s0 2>/dev/null | awk '{print $4}' | head -1`)
 
 (defwidget dash []
   (box :class "dash" :orientation "v" :space-evenly false :valign "center" :halign "center"
     (label :class "clock" :text time)
     (label :class "date"  :text date)
-    (box :class "divider")
-    (label :class "np-label" :text "NOW PLAYING")
-    (label :class "track" :wrap true :limit-width 42
-           :text {track != "" ? track : "—"})
-    (box :class "stats" :orientation "h" :space-evenly true
-      (label :class "stat" :text "CPU ${round(EWW_CPU.avg, 0)}%")
-      (label :class "stat" :text "RAM ${round(EWW_RAM.used_mem_perc, 0)}%")
-      (label :class "stat" :text {charging == "Charging" ? "BAT ${batt}% +" : "BAT ${batt}%"}))))
+    (box :class "card weather-card"
+      (label :class "weather" :text {weather != "" ? weather : "weather unavailable"}))
+    (box :class "card net-card" :orientation "v" :space-evenly false
+      (label :class "net-ssid" :halign "start"
+             :text {ssid != "" ? "WiFi   ${ssid}" : (netstate == "up" ? "WiFi   connected" : "WiFi   offline")})
+      (label :class "net-ip" :halign "start"
+             :text {ipaddr != "" ? "IP     ${ipaddr}" : "IP     —"}))))
 
 (defwindow dashboard
   :monitor 0

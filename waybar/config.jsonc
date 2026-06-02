@@ -8,7 +8,12 @@
 
   "sway/workspaces": {
     "format": "{name}",
-    "disable-scroll": false
+    "disable-scroll": false,
+    "persistent-workspaces": {
+      "1:Dash": [],
+      "2:Music": [],
+      "3:Video": []
+    }
   },
   "clock": {
     "format": "{:%H:%M   %a %d %b}"

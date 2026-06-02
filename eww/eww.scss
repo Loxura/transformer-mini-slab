@@ -1,19 +1,28 @@
-// transformer-mini-slab — Dash styling (e-ink: paper + ink)
+// transformer-mini-slab — Dash styling (dark / utility). Tokyo-night-ish palette.
 * {
   all: unset;
   font-family: "JetBrains Mono", monospace;
 }
 
 .dash {
-  background-color: #F4F1EA;
-  color: #1B1B1B;
-  padding: 48px;
+  background-color: #16161e;
+  color: #c0caf5;
+  padding: 50px;
 }
 
-.clock     { font-size: 110px; font-weight: bold; }
-.date      { font-size: 28px;  color: #3A3A3A; margin-bottom: 36px; }
-.divider   { background-color: #B7B3A9; min-height: 1px; min-width: 320px; margin: 24px 0; }
-.np-label  { font-size: 13px;  color: #6E6E6E; }
-.track     { font-size: 26px;  color: #1B1B1B; margin-bottom: 40px; }
-.stats     { margin-top: 24px; }
-.stat      { font-size: 18px;  color: #3A3A3A; padding: 0 22px; }
+.clock { font-size: 128px; font-weight: bold; color: #c0caf5; }
+.date  { font-size: 26px;  color: #7aa2f7; margin-bottom: 36px; }
+
+.card {
+  background-color: #1a1b26;
+  border: 1px solid #292e42;
+  border-radius: 16px;
+  padding: 16px 28px;
+  margin: 10px 0;
+  min-width: 380px;
+}
+
+.weather-card .weather { font-size: 24px; color: #9ece6a; }
+
+.net-ssid { font-size: 19px; color: #c0caf5; }
+.net-ip   { font-size: 17px; color: #565f89; margin-top: 6px; }
