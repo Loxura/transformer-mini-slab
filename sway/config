@@ -38,7 +38,7 @@ workspace $ws1
 # 1-finger swipe L/R -> prev/next workspace.
 # -o is orientation; it must match the output transform. Try -o 1 for transform 90
 # (use -o 3 if you switch to transform 270). Tune if a swipe goes the wrong way.
-exec lisgd -d /dev/input/event0 -o 90 -g "1,LR,*,*,*,/home/minideck/.local/bin/deck-swipe prev" -g "1,RL,*,*,*,/home/minideck/.local/bin/deck-swipe next"
+exec lisgd -d /dev/input/event0 -o 90 -t 800 -r 40 -g "1,LR,*,*,*,/home/minideck/.local/bin/deck-swipe prev" -g "1,RL,*,*,*,/home/minideck/.local/bin/deck-swipe next"
 
 ### KEYBOARD (when the keyboard's attached) ##################################
 bindsym $mod+1 workspace $ws1
