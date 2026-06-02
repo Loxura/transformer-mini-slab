@@ -1,0 +1,71 @@
+// transformer-mini-slab — Now Playing card structure/sizes.
+// Colours are injected live (from the album cover) via inline :style in eww.yuck.
+// Tuned for the deck's rotated 1280×800 landscape, touch-first (big hit targets).
+
+* {
+  all: unset;
+  font-family: "JetBrains Mono", "Noto Sans", monospace;
+}
+
+.card {
+  padding: 56px 72px;
+}
+
+.top { }
+
+.cover-wrap {
+  border-radius: 8px;
+  padding: 0;
+}
+.cover {
+  border-radius: 8px;
+}
+
+.meta { padding-left: 8px; }
+
+.title {
+  font-size: 44px;
+  font-weight: 700;
+}
+.artist {
+  font-size: 28px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.album {
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.progress-row { margin-top: 22px; }
+.bar {
+  min-height: 10px;
+  border-radius: 5px;
+}
+.bar trough {
+  min-height: 10px;
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.14);
+}
+.bar progress {
+  min-height: 10px;
+  border-radius: 5px;
+}
+.t { font-size: 16px; }
+
+.controls { margin-top: 12px; }
+
+// big, tappable transport buttons
+.btn {
+  font-size: 42px;
+  padding: 26px 44px;
+  border-radius: 20px;
+}
+.btn.play {
+  font-size: 50px;
+  padding: 28px 56px;
+  border-radius: 999px;
+}
+.btn:active {
+  opacity: 0.7;
+}

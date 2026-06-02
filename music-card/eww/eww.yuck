@@ -1,0 +1,56 @@
+;; transformer-mini-slab — Now Playing card (colour-adaptive "Spotify box").
+;; Runs in its OWN eww config/daemon:  eww -c ~/.config/eww-music
+;; so it never collides with the Dash eww (~/.config/eww). Shown only on the
+;; "2:Music" workspace by bin/np-music-watch (a sway-event watcher).
+;;
+;; All colours come live from bin/np-now (derived from the album cover) and are
+;; applied via inline :style; structure/sizes live in eww.scss.
+
+(deflisten np
+  :initial '{"state":"stop","title":"—","artist":"","album":"","date":"","art":"","progress":0,"elapsed_str":"0:00","duration_str":"0:00","colors":{"bg":"#161616","accent":"#45577a","accent2":"#34425e","text":"#f4f1ea","muted":"#9a9a9a"}}'
+  "/home/minideck/.config/eww-music/bin/np-now")
+
+(defwidget cover []
+  (box :class "cover-wrap" :style "background-color: ${np.colors.accent2};"
+    (image :class "cover" :path {np.art} :image-width 440 :image-height 440)))
+
+(defwidget meta []
+  (box :class "meta" :orientation "v" :space-evenly false :valign "center" :hexpand true :spacing 8
+    (label :class "title"  :halign "start" :limit-width 22 :wrap false :text {np.title}
+           :style "color: ${np.colors.text};")
+    (label :class "artist" :halign "start" :limit-width 28 :text {np.artist}
+           :style "color: ${np.colors.accent};")
+    (label :class "album"  :halign "start" :limit-width 34
+           :text {np.date != "" ? "${np.album} · ${np.date}" : np.album}
+           :style "color: ${np.colors.muted};")
+    (box :class "progress-row" :orientation "h" :space-evenly false :spacing 14 :valign "center"
+      (label :class "t" :text {np.elapsed_str} :style "color: ${np.colors.muted};")
+      (progress :class "bar" :hexpand true :value {np.progress}
+                :style "color: ${np.colors.accent}; background-color: ${np.colors.accent2};")
+      (label :class "t" :text {np.duration_str} :style "color: ${np.colors.muted};"))))
+
+(defwidget controls []
+  (box :class "controls" :orientation "h" :halign "center" :space-evenly true :spacing 56
+    (button :class "btn" :onclick "/home/minideck/.config/eww-music/bin/np-ctl prev"
+            :style "color: ${np.colors.text};" "⏮")
+    (button :class "btn play" :onclick "/home/minideck/.config/eww-music/bin/np-ctl toggle"
+            :style "color: ${np.colors.bg}; background-color: ${np.colors.accent};"
+            {np.state == "play" ? "⏸" : "▶"})
+    (button :class "btn" :onclick "/home/minideck/.config/eww-music/bin/np-ctl next"
+            :style "color: ${np.colors.text};" "⏭")))
+
+(defwidget card []
+  (box :class "card" :orientation "v" :space-evenly false :spacing 40 :valign "center"
+       :style "background-color: ${np.colors.bg};"
+    (box :class "top" :orientation "h" :space-evenly false :spacing 48 :halign "center" :valign "center"
+      (cover)
+      (meta))
+    (controls)))
+
+(defwindow music
+  :monitor 0
+  :stacking "overlay"
+  :exclusive false
+  :focusable true
+  :geometry (geometry :width "100%" :height "100%" :anchor "center")
+  (card))

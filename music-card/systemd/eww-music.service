@@ -1,0 +1,19 @@
+# transformer-mini-slab — Now Playing card (eww-music) watcher.
+# Install:  cp music-card/systemd/eww-music.service ~/.config/systemd/user/
+#           systemctl --user enable --now eww-music.service
+# Runs the sway-event watcher, which brings up our colour-adaptive overlay on the
+# Music workspace. Self-contained; does not touch the Dash eww or sway/config.
+[Unit]
+Description=Now Playing colour-adaptive card (eww-music)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.config/eww-music/bin/np-music-watch
+ExecStopPost=%h/.local/bin/eww -c %h/.config/eww-music close music
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
