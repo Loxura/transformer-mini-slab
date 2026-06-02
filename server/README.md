@@ -1,38 +1,48 @@
-# Music fetcher (PC side)
+# Music fetcher (PC side) — transient conveyor
 
-Runs on the **main PC** (not the tablet). Builds a music library, then **Syncthing**
-replicates it to the tablet's `~/Music` (P2P, no cloud). The tablet plays locally — works
-with the PC off.
+Runs on the **main PC**. The PC does the heavy lifting and only holds files **in-flight**;
+finished albums are shipped to the tablet and the local staging is **flushed**. The tablet
+holds the permanent library and plays it (PC off).
+
+```
+Lidarr (want-list) + Prowlarr + qBittorrent
+  download -> Lidarr imports/organises -> ./library (staging)
+        sync-to-tablet.sh:  rsync --remove-source-files  (copy, then delete source)
+  -> tablet ~/Music (permanent) -> mpd auto-update -> play ;  PC staging flushed
+```
 
 ## Prerequisites
-Docker + the compose plugin. On Windows: **Docker Desktop** (manages the WSL2 backend), or
-`sudo apt install docker.io docker-compose-v2` inside WSL.
+Docker + compose. Windows: **Docker Desktop** (enable WSL integration), or
+`sudo apt install docker.io docker-compose-v2` in WSL. Plus `rsync` + `ssh` (for the ship step;
+the WSL→tablet SSH key is already set up).
 
-## Start
+## Run
 ```sh
 cd server
-# edit TZ in docker-compose.yml first
-docker compose up -d
+docker compose up -d            # only busy while fetching
 ```
-Creates `./config`, `./downloads`, `./library` next to the compose file.
+Folders `config/ downloads/ library/` are created next to the compose file. Configure the UIs
+from a browser: **Lidarr** :8686 · **Prowlarr** :9696 · **qBittorrent** :8080.
 
-## Web UIs (from the PC browser)
-| Service | URL | Role |
-|---|---|---|
-| Lidarr | http://localhost:8686 | music library manager |
-| Prowlarr | http://localhost:9696 | indexer manager (feeds Lidarr) |
-| qBittorrent | http://localhost:8080 | download client (default login admin/adminadmin → change it) |
-| Syncthing | http://localhost:8384 | sync `./library` → tablet |
+Wiring: qBittorrent save path `/downloads`; Prowlarr → add indexers + add Lidarr under
+Settings→Apps; Lidarr → add qBittorrent as download client, root folder `/music`.
 
-## Wiring order
-1. **qBittorrent** — log in, change the password, set the save path to `/downloads`.
-2. **Prowlarr** — add your indexers; under *Settings → Apps* add Lidarr (it pushes indexers to it).
-3. **Lidarr** — *Settings → Download Clients* add qBittorrent; *Media Management* root folder `/music`;
-   then add artists/albums to fetch.
-4. **Syncthing** — share the `/library` folder; pair with the tablet (see below).
+## Ship + flush
+```sh
+./sync-to-tablet.sh            # copies ./library -> tablet:~/Music, deletes shipped files
+```
+Automate it on a timer (every 10 min):
+```sh
+*/10 * * * * /full/path/server/sync-to-tablet.sh >> ~/sync-tablet.log 2>&1
+```
+Override the target if needed: `TABLET=minideck@192.168.0.43 ./sync-to-tablet.sh`.
 
-## Tablet side
-- Tablet runs Syncthing too; pair the two devices and accept the shared folder into `~/Music`.
-- mpd has `auto_update "yes"`, so new files appear in the library automatically.
+## The one Lidarr gotcha
+Lidarr expects its library files to *stay put*; we flush them after shipping, so Lidarr will
+mark those albums "missing." To stop it re-downloading:
+- **Don't enable** automatic missing-album search / RSS sync, **or**
+- unmonitor albums after they're fetched.
 
-> Indexer/content choices are yours — this repo only provides the open-source plumbing.
+Treat Lidarr here as a **fetch-and-forward** engine (add to want-list → it grabs + organises
+once → conveyor ships it → done), not a permanent library manager. The permanent library is
+the tablet.
