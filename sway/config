@@ -27,7 +27,7 @@ set $ws3 "3:Video"
 
 ### AUTOSTART — one app per mode #############################################
 # exec waybar   # hidden — the eww Dash top bar replaces it
-exec /home/minideck/.local/bin/eww open dashboard   # Dash: eww widgets (background layer)
+exec /home/minideck/.local/bin/dash-watch   # Dash (eww), gated to the Dash workspace (ws1)
 exec /home/minideck/.config/eww-music/bin/np-music-watch   # Now Playing card, gated to the Music workspace
 exec foot -a music ncmpcpp        # runs under the card overlay; keeps the Music workspace alive
 for_window [app_id="music"] move to workspace $ws2
