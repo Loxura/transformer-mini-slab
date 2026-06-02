@@ -20,15 +20,12 @@
 
 (defwidget body []
   (box :class "body" :orientation "h" :space-evenly false :vexpand true
-    ;; analog clock
     (box :class "card clock-card" :valign "center" :halign "center"
       (image :class "analog" :path clockimg :image-width 240 :image-height 240))
-    ;; calendar + upcoming events
     (box :class "card cal-card" :orientation "v" :space-evenly false :hexpand true
       (calendar :class "cal")
       (label :class "events-h" :text "UPCOMING")
       (label :class "events" :text {events != "" ? events : "nothing scheduled"} :wrap true :xalign 0))
-    ;; markets
     (box :class "card ticker-card" :orientation "v" :space-evenly false :valign "center" :halign "center"
       (label :class "ticker-h" :text "MARKETS")
       (label :class "ticker"   :text ticker))))
@@ -44,37 +41,43 @@
     (body)))
 
 ;; ============================ Music card (ws2) ============================
-(defpoll np_title  :interval "1s"  `mpc -f '%title%'  current 2>/dev/null`)
-(defpoll np_artist :interval "1s"  `mpc -f '%artist%' current 2>/dev/null`)
-(defpoll vol       :interval "2s"  `wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}'`)
-(defpoll queue     :interval "2s"  `mpc -f '%position%. %artist% - %title%' playlist 2>/dev/null | head -25`)
-(defpoll arrivals  :interval "60s" `~/.local/bin/new-arrivals 2>/dev/null`)
+(defpoll np_title  :interval "1s"   `mpc -f '%title%'  current 2>/dev/null`)
+(defpoll np_artist :interval "1s"   `mpc -f '%artist%' current 2>/dev/null`)
+(defpoll vol       :interval "2s"   `wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}'`)
+(defpoll queue     :interval "2s"   `mpc -f '%position%. %artist% - %title%' playlist 2>/dev/null | head -25`)
+(defpoll arrivals  :interval "60s"  `~/.local/bin/new-arrivals 2>/dev/null`)
+(defpoll cover     :interval "3s"   `~/.local/bin/cover-palette`)
+(defpoll icons     :interval "999999s" `~/.local/bin/fa-icons`)
 
 (defwidget musiccard-w []
-  (box :class "card-root" :orientation "v" :space-evenly false :valign "center" :halign "center"
-    (label :class "np-title"  :text {np_title  != "" ? np_title  : "—"} :limit-width 42)
-    (label :class "np-artist" :text {np_artist != "" ? np_artist : ""}  :limit-width 42)
-    (box :class "row" :orientation "h" :space-evenly true
-      (button :class "btn"     :onclick "~/.local/bin/music-ctl prev"   "‹ prev")
-      (button :class "btn big" :onclick "~/.local/bin/music-ctl toggle" "play / pause")
-      (button :class "btn"     :onclick "~/.local/bin/music-ctl next"   "next ›"))
-    (box :class "row" :orientation "h" :space-evenly true
-      (button :class "btn"     :onclick "~/.local/bin/music-ctl shuffleartist" "shuffle artist")
-      (button :class "btn"     :onclick "~/.local/bin/music-ctl shuffleall"    "shuffle all")
-      (button :class "btn fav" :onclick "~/.local/bin/music-ctl favorite"      "+ favorite"))
-    (box :class "row" :orientation "h" :space-evenly true
-      (button :class "btn" :onclick "~/.local/bin/music-ctl voldown" "vol −")
-      (label  :class "vol" :text "${vol}%")
-      (button :class "btn" :onclick "~/.local/bin/music-ctl volup"   "vol +")
-      (button :class "btn" :onclick "~/.local/bin/music-ctl mute"    "mute"))
-    (label :class "sec" :text "NEW ARRIVALS")
-    (box :class "arrivals" :orientation "v" :space-evenly false
-      (for a in arrivals
-        (button :class "album" :onclick "~/.local/bin/music-ctl playalbum '${a.path}'"
-          (label :class "album-name" :text {a.name} :limit-width 48 :xalign 0))))
-    (label :class "sec" :text "QUEUE")
-    (scroll :class "queue" :vscroll true
-      (label :text {queue != "" ? queue : "queue empty"} :xalign 0))))
+  (box :class "card-root" :orientation "h" :space-evenly false :style "background-color: ${cover.bg};"
+    ;; LEFT — cover, now playing, controls
+    (box :class "mc-left" :orientation "v" :space-evenly false :valign "center" :halign "center" :hexpand true
+      (image :class "cover" :path {cover.art} :image-width 360 :image-height 360)
+      (label :class "np-title"  :text {np_title != "" ? np_title : "—"} :limit-width 30 :style "color: ${cover.text};")
+      (label :class "np-artist" :text {np_artist} :limit-width 38 :style "color: ${cover.accent};")
+      (box :class "controls" :orientation "h" :space-evenly false :halign "center"
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl prev"   (label :class "g" :text {icons.prev}))
+        (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {icons.play}))
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl next"   (label :class "g" :text {icons.next})))
+      (box :class "controls" :orientation "h" :space-evenly false :halign "center"
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleall"    (label :class "g" :text {icons.shuffle}))
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleartist" (label :class "g" :text {icons.artist}))
+        (button :class "ico fav" :onclick "~/.local/bin/music-ctl favorite"      (label :class "g" :text {icons.heart}))
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl voldown"       (label :class "g" :text {icons.voldn}))
+        (label  :class "vol" :text "${vol}%")
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl volup"         (label :class "g" :text {icons.volup}))
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute}))))
+    ;; RIGHT — new arrivals + queue
+    (box :class "mc-right" :orientation "v" :space-evenly false :hexpand true :valign "center"
+      (label :class "sec" :text "NEW ARRIVALS")
+      (box :class "arrivals" :orientation "v" :space-evenly false
+        (for a in arrivals
+          (button :class "album" :onclick "~/.local/bin/music-ctl playalbum '${a.path}'"
+            (label :class "album-name" :text {a.name} :limit-width 30 :xalign 0))))
+      (label :class "sec" :text "QUEUE")
+      (scroll :class "queue" :vscroll true
+        (label :text {queue != "" ? queue : "queue empty"} :xalign 0)))))
 
 (defwindow musiccard
   :monitor 0

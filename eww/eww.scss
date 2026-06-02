@@ -1,61 +1,50 @@
-// transformer-mini-slab — Dash styling (dark / utility, full-screen). Tokyo-night-ish.
+// transformer-mini-slab - Dash + Music card styling (dark / Tokyo-night-ish).
 * {
   all: unset;
   font-family: "JetBrains Mono", monospace;
 }
 
+/* ===== Dash ===== */
 .dash {
   background-color: #16161e;
   color: #c0caf5;
-  padding: 28px 34px;
+  padding: 44px 40px 36px 40px;
 }
-
-/* ---- top bar ---- */
 .topbar  { font-size: 18px; padding-bottom: 14px; border-bottom: 1px solid #292e42; }
 .tb-date { font-size: 24px; font-weight: bold; color: #c0caf5; }
 .tb-item { color: #9aa5ce; margin: 0 10px; }
 .tb-sep  { color: #3b4261; }
 .tb-ip   { color: #565f89; margin-left: 14px; }
-
-/* ---- body ---- */
-.body { margin-top: 30px; }
-.card {
-  background-color: #1a1b26;
-  border: 1px solid #292e42;
-  border-radius: 18px;
-  padding: 26px 30px;
-  margin: 0 16px;
-}
-
-/* analog clock */
+.body    { margin-top: 30px; }
+.card    { background-color: #1a1b26; border: 1px solid #292e42; border-radius: 18px; padding: 26px 30px; margin: 0 16px; }
 .clock-card { padding: 30px; }
-
-/* calendar (bigger) + events */
-.cal-card  { min-width: 380px; }
-.cal       { font-size: 22px; color: #c0caf5; }
+.cal-card   { min-width: 380px; }
+.cal        { font-size: 22px; color: #c0caf5; }
 .cal:selected { background-color: #7aa2f7; color: #16161e; border-radius: 8px; }
-.events-h  { font-size: 13px; color: #7aa2f7; margin-top: 22px; margin-bottom: 10px; }
-.events    { font-size: 16px; color: #9aa5ce; }
-
-/* markets ticker (smaller) */
+.events-h   { font-size: 13px; color: #7aa2f7; margin-top: 22px; margin-bottom: 10px; }
+.events     { font-size: 16px; color: #9aa5ce; }
 .ticker-card { min-width: 300px; }
-.ticker-h    { font-size: 13px; color: #7aa2f7; margin-bottom: 14px; }
-.ticker      { font-size: 26px; font-weight: bold; color: #9ece6a; }
+.ticker-h   { font-size: 13px; color: #7aa2f7; margin-bottom: 14px; }
+.ticker     { font-size: 26px; font-weight: bold; color: #9ece6a; }
 
-/* ===== music card (ws2) ===== */
-.card-root { background-color: #16161e; color: #c0caf5; padding: 40px 50px; }
-.np-title  { font-size: 34px; font-weight: bold; }
-.np-artist { font-size: 20px; color: #7aa2f7; margin-bottom: 22px; }
-.row       { margin: 7px 0; }
-.btn       { background-color: #1a1b26; border: 1px solid #292e42; border-radius: 12px;
-             padding: 14px 22px; margin: 0 8px; color: #c0caf5; font-size: 17px; }
-.btn:hover { background-color: #292e42; }
-.btn.big   { font-size: 19px; padding: 14px 34px; }
-.btn.fav   { color: #9ece6a; }
-.vol       { font-size: 18px; color: #e0af68; padding: 0 14px; }
-.sec       { font-size: 13px; color: #565f89; margin-top: 22px; margin-bottom: 8px; }
-.album     { background-color: #1a1b26; border-radius: 10px; padding: 9px 16px; margin: 3px 0; }
-.album:hover { background-color: #292e42; }
-.album-name  { color: #c0caf5; font-size: 16px; }
+/* ===== Music card (ws2) - palette adapts to the cover via inline :style ===== */
+.card-root { padding: 0; }
+.mc-left   { padding: 40px; }
+.mc-right  { padding: 40px 50px; background-color: rgba(0,0,0,0.22); }
+.cover     { border-radius: 16px; margin-bottom: 22px; }
+.np-title  { font-size: 30px; font-weight: bold; }
+.np-artist { font-size: 18px; margin-bottom: 22px; }
+.controls  { margin: 7px 0; }
+.ico       { background-color: rgba(255,255,255,0.08); border-radius: 40px; padding: 13px 16px; margin: 0 6px; }
+.ico:hover { background-color: rgba(255,255,255,0.20); }
+.ico.big   { padding: 15px 19px; }
+.g         { font-family: "FontAwesome"; font-size: 22px; color: #e6e6ee; }
+.ico.big .g { font-size: 30px; }
+.ico.fav .g { color: #f7768e; }
+.vol       { color: #e0af68; font-size: 15px; padding: 0 10px; }
+.sec       { font-size: 13px; color: rgba(255,255,255,0.55); margin: 16px 0 8px 0; }
+.album     { background-color: rgba(255,255,255,0.07); border-radius: 10px; padding: 9px 14px; margin: 3px 0; }
+.album:hover { background-color: rgba(255,255,255,0.18); }
+.album-name  { color: #e6e6ee; font-size: 15px; }
 .queue       { min-height: 150px; }
-.queue label { color: #9aa5ce; font-size: 14px; }
+.queue label { color: rgba(255,255,255,0.7); font-size: 13px; }
