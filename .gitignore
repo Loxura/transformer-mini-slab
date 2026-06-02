@@ -1,0 +1,17 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# local state / secrets
+*.log
+*.bak
+.env
+
+# never commit the music library itself
+/music/
+*.mp3
+*.flac
+*.m4a
+*.ogg
