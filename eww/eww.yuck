@@ -1,6 +1,12 @@
-;; transformer-mini-slab — Dash (dark, full-screen). Top bar + body.
-;; Body: analog clock · calendar + upcoming events · markets ticker.
+;; transformer-mini-slab — single full-screen "deck" surface.
+;; ONE layer-shell window, always mapped, content follows the focused sway workspace:
+;;   1:Dash  -> dash    2:Music -> music card    3:Video -> empty (mpv shows on top)
+;; This replaces the old per-window watcher gating (two bg windows fought for the
+;; surface and the covered one stopped repainting -> "never updates").
 
+(deflisten ws :initial "1:Dash" `~/.local/bin/ws-name`)
+
+;; ============================ Dash (ws1) ============================
 (defpoll date     :interval "300s"  `date +"%A, %d %B"`)
 (defpoll weather  :interval "1800s" `curl -s 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null || wget -qO- 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null`)
 (defpoll ssid     :interval "30s"   `iw dev wlp1s0 link 2>/dev/null | sed -n 's/.*SSID: //p'`)
@@ -18,7 +24,7 @@
     (label :class "tb-item" :text {ssid != "" ? ssid : "WiFi"})
     (label :class "tb-ip"   :text ipaddr)))
 
-(defwidget body []
+(defwidget dash-body []
   (box :class "body" :orientation "h" :space-evenly false :vexpand true
     (box :class "card clock-card" :valign "center" :halign "center"
       (image :class "analog" :path clockimg :image-width 240 :image-height 240))
@@ -30,35 +36,57 @@
       (label :class "ticker-h" :text "MARKETS")
       (label :class "ticker"   :text ticker))))
 
-(defwindow dashboard
-  :monitor 0
-  :stacking "bg"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :width "100%" :height "100%" :anchor "center")
-  (box :class "dash" :orientation "v" :space-evenly false
+(defwidget dash-w []
+  (box :class "dash" :orientation "v" :space-evenly false :vexpand true :hexpand true
     (topbar)
-    (body)))
+    (dash-body)))
 
 ;; ============================ Music card (ws2) ============================
 (defpoll np_title  :interval "1s"   `mpc -f '%title%'  current 2>/dev/null`)
 (defpoll np_artist :interval "1s"   `mpc -f '%artist%' current 2>/dev/null`)
+(defpoll state     :interval "1s"   `mpc status 2>/dev/null | grep -oE 'playing|paused' | head -1`)
 (defpoll vol       :interval "2s"   `wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}'`)
-(defpoll queue     :interval "2s"   `mpc -f '%position%. %artist% - %title%' playlist 2>/dev/null | head -25`)
-(defpoll arrivals  :interval "60s"  `~/.local/bin/new-arrivals 2>/dev/null`)
+(defpoll nextup    :interval "1s"   `pos=$(mpc -f %position% current 2>/dev/null); [ -n "$pos" ] && mpc -f '%artist% - %title%' playlist 2>/dev/null | sed -n "$((pos+1))p"`)
 (defpoll cover     :interval "3s"   `~/.local/bin/cover-palette`)
 (defpoll icons     :interval "999999s" `~/.local/bin/fa-icons`)
+(deflisten cava    :initial "[]"     `~/.local/bin/cava-bars`)
+
+;; tap-focused library browser state (driven imperatively by ~/.local/bin/music-browse)
+(defvar browsing   false)
+(defvar browse     "[]")
+(defvar browsepath "")
+
+(defwidget cava-viz []
+  (box :class "cava" :orientation "h" :space-evenly true :valign "end" :halign "center"
+    (for v in cava
+      (box :class "cava-bar" :valign "end" :vexpand false
+        :style "min-height: ${v}px; background-color: ${cover.accent};"))))
+
+(defwidget browser []
+  (box :class "browser" :orientation "v" :space-evenly false :visible browsing :vexpand true :hexpand true :style "background-color: ${cover.bg};"
+    (box :class "browser-bar" :orientation "h" :space-evenly false :valign "center"
+      (button :class "ico sm" :onclick "~/.local/bin/music-browse up"    (label :class "g" :text {icons.back}))
+      (label  :class "brow-path" :text {browsepath != "" ? browsepath : "Library"} :limit-width 48 :xalign 0)
+      (box :hexpand true)
+      (button :class "ico sm" :onclick "~/.local/bin/music-browse close" (label :class "g" :text {icons.close})))
+    (scroll :class "brow-scroll" :vscroll true :vexpand true
+      (box :orientation "v" :space-evenly false
+        (for it in browse
+          (button :class "brow-row" :onclick {it.type == "dir" ? "~/.local/bin/music-browse cd '${it.path}'" : "~/.local/bin/music-browse play '${it.path}'"}
+            (box :orientation "h" :space-evenly false :valign "center"
+              (label :class "brow-ico g" :text {it.type == "dir" ? icons.folder : icons.note})
+              (label :class "brow-label" :text {it.label} :limit-width 46 :xalign 0))))))))
 
 (defwidget musiccard-w []
-  (box :class "card-root" :orientation "h" :space-evenly false :style "background-color: ${cover.bg};"
-    ;; LEFT — cover, now playing, controls
-    (box :class "mc-left" :orientation "v" :space-evenly false :valign "center" :halign "center" :hexpand true
-      (image :class "cover" :path {cover.art} :image-width 360 :image-height 360)
-      (label :class "np-title"  :text {np_title != "" ? np_title : "—"} :limit-width 30 :style "color: ${cover.text};")
-      (label :class "np-artist" :text {np_artist} :limit-width 38 :style "color: ${cover.accent};")
+  (overlay
+    ;; ---- base: one centered column; the cover is the dominant element ----
+    (box :class "card-root" :orientation "v" :space-evenly false :valign "center" :halign "center" :vexpand true :hexpand true :style "background-color: ${cover.bg};"
+      (image :class "cover" :path {cover.art} :image-width 430 :image-height 430)
+      (label :class "np-title"  :text {np_title != "" ? np_title : "—"} :limit-width 36 :xalign 0.5 :style "color: ${cover.text};")
+      (label :class "np-artist" :text {np_artist} :limit-width 44 :xalign 0.5 :style "color: ${cover.accent};")
       (box :class "controls" :orientation "h" :space-evenly false :halign "center"
         (button :class "ico"     :onclick "~/.local/bin/music-ctl prev"   (label :class "g" :text {icons.prev}))
-        (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {icons.play}))
+        (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {state == "playing" ? icons.pause : icons.play}))
         (button :class "ico"     :onclick "~/.local/bin/music-ctl next"   (label :class "g" :text {icons.next})))
       (box :class "controls" :orientation "h" :space-evenly false :halign "center"
         (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleall"    (label :class "g" :text {icons.shuffle}))
@@ -67,22 +95,30 @@
         (button :class "ico"     :onclick "~/.local/bin/music-ctl voldown"       (label :class "g" :text {icons.voldn}))
         (label  :class "vol" :text "${vol}%")
         (button :class "ico"     :onclick "~/.local/bin/music-ctl volup"         (label :class "g" :text {icons.volup}))
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute}))))
-    ;; RIGHT — new arrivals + queue
-    (box :class "mc-right" :orientation "v" :space-evenly false :hexpand true :valign "center"
-      (label :class "sec" :text "NEW ARRIVALS")
-      (box :class "arrivals" :orientation "v" :space-evenly false
-        (for a in arrivals
-          (button :class "album" :onclick "~/.local/bin/music-ctl playalbum '${a.path}'"
-            (label :class "album-name" :text {a.name} :limit-width 30 :xalign 0))))
-      (label :class "sec" :text "QUEUE")
-      (scroll :class "queue" :vscroll true
-        (label :text {queue != "" ? queue : "queue empty"} :xalign 0)))))
+        (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute})))
+      (cava-viz)
+      ;; up next - small, at the very bottom, centered
+      (label :class "nextup" :text {nextup != "" ? ("UP NEXT  ·  " + nextup) : ""} :limit-width 50 :xalign 0.5))
+    ;; ---- overlay: browse + refresh pinned to the top-right corner ----
+    (box :class "corner" :halign "end" :valign "start" :orientation "h" :space-evenly false
+      (button :class "ico sm" :onclick "~/.local/bin/music-browse open" (label :class "g" :text {icons.browse}))
+      (button :class "ico sm" :onclick "~/.local/bin/music-ctl rescan"  (label :class "g" :text {icons.refresh})))
+    ;; ---- overlay: full-screen library browser (toggled by `browsing`) ----
+    (browser)))
 
-(defwindow musiccard
+;; ============================ Deck root ============================
+;; Stack the modes; only the focused workspace's widget is visible (hidden widgets
+;; are not allocated, so the visible one fills the screen). On 3:Video both are
+;; hidden and mpv (a normal window) draws above this bg layer.
+(defwidget deck-root []
+  (box :orientation "v" :space-evenly false :vexpand true :hexpand true
+    (box :visible {ws == "1:Dash"}  :vexpand true :hexpand true (dash-w))
+    (box :visible {ws == "2:Music"} :vexpand true :hexpand true (musiccard-w))))
+
+(defwindow deck
   :monitor 0
   :stacking "bg"
   :exclusive false
   :focusable false
   :geometry (geometry :width "100%" :height "100%" :anchor "center")
-  (musiccard-w))
+  (deck-root))

@@ -31,13 +31,16 @@
 .card-root { padding: 0; }
 .mc-left   { padding: 40px; }
 .mc-right  { padding: 40px 50px; background-color: rgba(0,0,0,0.22); }
-.cover     { border-radius: 16px; margin-bottom: 22px; }
+.cover     { border-radius: 18px; margin-bottom: 20px; }
 .np-title  { font-size: 30px; font-weight: bold; }
 .np-artist { font-size: 18px; margin-bottom: 22px; }
 .controls  { margin: 7px 0; }
 .ico       { background-color: rgba(255,255,255,0.08); border-radius: 40px; padding: 13px 16px; margin: 0 6px; }
 .ico:hover { background-color: rgba(255,255,255,0.20); }
 .ico.big   { padding: 15px 19px; }
+.ico.sm    { padding: 7px 9px; margin: 0; }
+.ico.sm .g { font-size: 15px; }
+.corner    { padding: 18px 22px 0 0; }
 .g         { font-family: "FontAwesome"; font-size: 22px; color: #e6e6ee; }
 .ico.big .g { font-size: 30px; }
 .ico.fav .g { color: #f7768e; }
@@ -46,5 +49,18 @@
 .album     { background-color: rgba(255,255,255,0.07); border-radius: 10px; padding: 9px 14px; margin: 3px 0; }
 .album:hover { background-color: rgba(255,255,255,0.18); }
 .album-name  { color: #e6e6ee; font-size: 15px; }
-.queue       { min-height: 150px; }
-.queue label { color: rgba(255,255,255,0.7); font-size: 13px; }
+.nextup      { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px; }
+
+/* spectrum visualizer - bars themed to the cover accent (set inline) */
+.cava        { min-height: 90px; min-width: 430px; margin-top: 18px; }
+.cava-bar    { min-width: 7px; margin: 0 2px; border-radius: 3px 3px 0 0; }
+
+/* ---- tap-focused library browser (full-screen overlay) ---- */
+.browser      { padding: 34px 44px; }
+.browser-bar  { margin-bottom: 18px; }
+.brow-path    { color: #e6e6ee; font-size: 22px; font-weight: bold; margin-left: 16px; }
+.brow-scroll  { }
+.brow-row     { padding: 16px 18px; margin: 4px 0; border-radius: 12px; background-color: rgba(255,255,255,0.05); }
+.brow-row:hover { background-color: rgba(255,255,255,0.16); }
+.brow-ico     { font-size: 20px; color: rgba(255,255,255,0.7); margin-right: 18px; }
+.brow-label   { color: #e6e6ee; font-size: 20px; }

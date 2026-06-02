@@ -27,6 +27,9 @@ case "${1:-}" in
       [ -n "$f" ] && { mkdir -p "$FAV_DIR"; grep -qxF "$f" "$FAV" 2>/dev/null || printf '%s\n' "$f" >> "$FAV"; } ;;
   playfav) mpc -q clear; mpc -q load favorites 2>/dev/null; mpc -q play ;;
 
+  # rescan the library so mpd picks up anything new dropped into ~/Music
+  rescan)  mpc -q update ;;
+
   # volume (mpd output goes through PipeWire, so control the sink, not mpd's mixer)
   volup)   wpctl set-volume "$SINK" 5%+ ;;
   voldown) wpctl set-volume "$SINK" 5%- ;;

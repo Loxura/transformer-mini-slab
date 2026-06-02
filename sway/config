@@ -25,18 +25,19 @@ set $ws1 "1:Dash"
 set $ws2 "2:Music"
 set $ws3 "3:Video"
 
-### AUTOSTART — one app per mode #############################################
+### AUTOSTART — one eww "deck" surface; its content follows the focused workspace ####
 # exec waybar   # hidden — the eww Dash top bar replaces it
-exec /home/minideck/.local/bin/dash-watch   # Dash (eww), gated to the Dash workspace (ws1)
-exec /home/minideck/.local/bin/card-watch   # Music card (eww), gated to the Music workspace (ws2)
+exec /home/minideck/.local/bin/deck-launch  # single full-screen eww window (Dash + Music card)
 assign [app_id="mpv"] $ws3        # Video: mpv lands here on demand
 workspace $ws1
 
 ### TOUCH SWIPE between modes (lisgd) ########################################
 # 1-finger swipe L/R -> prev/next workspace.
-# -o is orientation; it must match the output transform. Try -o 1 for transform 90
-# (use -o 3 if you switch to transform 270). Tune if a swipe goes the wrong way.
-exec lisgd -d /dev/input/event0 -o 90 -r 30 -m 700 -g "1,LR,*,*,*,/home/minideck/.local/bin/deck-swipe prev" -g "1,RL,*,*,*,/home/minideck/.local/bin/deck-swipe next"
+# -o is an orientation STEP (0..3), not degrees: lisgd reads the raw panel (portrait),
+# bypassing sway's transform, so a landscape swipe is rotated back with -o 1 (=90deg).
+# Use -o 3 if you switch the output to transform 270, or if swipes go the wrong way.
+# -t = min swipe distance px, -r = angle leniency deg (max 45), -m = max swipe time ms.
+exec lisgd -d /dev/input/event0 -o 1 -t 120 -r 40 -m 800 -g "1,LR,*,*,*,/home/minideck/.local/bin/deck-swipe prev" -g "1,RL,*,*,*,/home/minideck/.local/bin/deck-swipe next"
 
 ### KEYBOARD (when the keyboard's attached) ##################################
 bindsym $mod+1 workspace $ws1
