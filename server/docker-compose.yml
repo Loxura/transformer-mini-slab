@@ -1,11 +1,41 @@
-# transformer-mini-slab — music fetcher (runs on the MAIN PC as a transient conveyor).
-# PC only holds in-flight data; sync-to-tablet.sh ships finished albums to the tablet
-# and flushes the local staging. Run on-demand or leave up (it's only busy when fetching).
-#
-#   downloads/  = qBittorrent temp (transient)
-#   library/    = Lidarr's organised output = staging that gets shipped + flushed
-# Configure the UIs from a browser: Lidarr :8686 · Prowlarr :9696 · qBittorrent :8080
+# transformer-mini-slab — music fetcher (PC conveyor) with qBittorrent behind Mullvad WireGuard.
+# gluetun = VPN with kill-switch; qBittorrent shares its network namespace, so torrent traffic
+# can ONLY exit through Mullvad — if the tunnel drops, qBit is cut off (no IP leak).
+# Secrets live in server/.env (gitignored). Copy .env.example -> .env and fill it in.
 services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: mullvad
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY}"
+      WIREGUARD_ADDRESSES: "${WIREGUARD_ADDRESSES}"
+      SERVER_COUNTRIES: "${VPN_COUNTRY:-Canada}"
+      FIREWALL_OUTBOUND_SUBNETS: "172.16.0.0/12"   # let Lidarr reach qBit's webui via gluetun
+      TZ: "America/Winnipeg"
+    ports:
+      - "8080:8080"          # qBittorrent web UI (published on gluetun)
+      - "6881:6881"          # torrent port
+      - "6881:6881/udp"
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"     # <-- all traffic routed through the VPN, kill-switched
+    environment: { PUID: "1000", PGID: "1000", TZ: "America/Winnipeg", WEBUI_PORT: "8080" }
+    volumes:
+      - ./config/qbittorrent:/config
+      - ./downloads:/downloads
+    depends_on:
+      - gluetun
+    restart: unless-stopped
+
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
@@ -14,19 +44,6 @@ services:
       - ./config/prowlarr:/config
     ports:
       - "9696:9696"
-    restart: unless-stopped
-
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: qbittorrent
-    environment: { PUID: "1000", PGID: "1000", TZ: "America/Winnipeg", WEBUI_PORT: "8080" }
-    volumes:
-      - ./config/qbittorrent:/config
-      - ./downloads:/downloads
-    ports:
-      - "8080:8080"
-      - "6881:6881"
-      - "6881:6881/udp"
     restart: unless-stopped
 
   lidarr:

@@ -16,16 +16,30 @@ Docker + compose. Windows: **Docker Desktop** (enable WSL integration), or
 `sudo apt install docker.io docker-compose-v2` in WSL. Plus `rsync` + `ssh` (for the ship step;
 the WSL→tablet SSH key is already set up).
 
+## VPN — qBittorrent behind Mullvad (gluetun, kill-switched)
+qBittorrent runs inside gluetun's network namespace, so torrent traffic exits **only** through
+Mullvad WireGuard; if the tunnel drops, qBit is cut off (no IP leak). Prowlarr/Lidarr use the
+normal connection (just searches/metadata).
+1. Mullvad → **Account → WireGuard configuration** → generate a key; note the **PrivateKey** + **Address**.
+2. `cp .env.example .env`, paste them in. **`.env` is gitignored — never commit it.**
+
 ## Run
 ```sh
 cd server
-docker compose up -d            # only busy while fetching
+cp .env.example .env        # then edit .env with your Mullvad key + address
+docker compose up -d
 ```
 Folders `config/ downloads/ library/` are created next to the compose file. Configure the UIs
 from a browser: **Lidarr** :8686 · **Prowlarr** :9696 · **qBittorrent** :8080.
 
+Confirm the VPN is actually up before downloading:
+```sh
+docker compose exec gluetun wget -qO- https://am.i.mullvad.net/connected
+```
+
 Wiring: qBittorrent save path `/downloads`; Prowlarr → add indexers + add Lidarr under
-Settings→Apps; Lidarr → add qBittorrent as download client, root folder `/music`.
+Settings→Apps; Lidarr → **Download Clients → qBittorrent, host `gluetun`, port `8080`**
+(not `localhost` — qBit lives in gluetun's network), root folder `/music`.
 
 ## Ship + flush
 ```sh
