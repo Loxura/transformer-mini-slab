@@ -5,6 +5,10 @@
 ;;
 ;; All colours come live from bin/np-now (derived from the album cover) and are
 ;; applied via inline :style; structure/sizes live in eww.scss.
+;;
+;; NOTE: the __PREV__/__PLAY__/__PAUSE__/__NEXT__ tokens are Font Awesome glyphs,
+;; substituted at deploy time by bin/deploy-card (the editing tools strip the raw
+;; private-use bytes, so we keep this file ASCII and inject them on the deck).
 
 (deflisten np
   :initial '{"state":"stop","title":"—","artist":"","album":"","date":"","art":"","progress":0,"elapsed_str":"0:00","duration_str":"0:00","colors":{"bg":"#161616","accent":"#45577a","accent2":"#34425e","text":"#f4f1ea","muted":"#9a9a9a"}}'
@@ -31,13 +35,13 @@
 
 (defwidget controls []
   (box :class "controls" :orientation "h" :halign "center" :space-evenly true :spacing 56
-    (button :class "btn" :onclick "/home/minideck/.config/eww-music/bin/np-ctl prev"
-            :style "color: ${np.colors.text};" "⏮")
-    (button :class "btn play" :onclick "/home/minideck/.config/eww-music/bin/np-ctl toggle"
+    (button :class "btn icon" :onclick "/home/minideck/.config/eww-music/bin/np-ctl prev"
+            :style "color: ${np.colors.text};" "__PREV__")
+    (button :class "btn icon play" :onclick "/home/minideck/.config/eww-music/bin/np-ctl toggle"
             :style "color: ${np.colors.bg}; background-color: ${np.colors.accent};"
-            {np.state == "play" ? "⏸" : "▶"})
-    (button :class "btn" :onclick "/home/minideck/.config/eww-music/bin/np-ctl next"
-            :style "color: ${np.colors.text};" "⏭")))
+            {np.state == "play" ? "__PAUSE__" : "__PLAY__"})
+    (button :class "btn icon" :onclick "/home/minideck/.config/eww-music/bin/np-ctl next"
+            :style "color: ${np.colors.text};" "__NEXT__")))
 
 (defwidget card []
   (box :class "card" :orientation "v" :space-evenly false :spacing 40 :valign "center"

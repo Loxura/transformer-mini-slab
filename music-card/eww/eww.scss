@@ -57,13 +57,16 @@
 
 // big, tappable transport buttons
 .btn {
-  font-size: 42px;
+  font-size: 38px;
   padding: 26px 44px;
   border-radius: 20px;
 }
+.btn.icon {
+  font-family: "FontAwesome";   // media glyphs (JetBrains Mono lacks them)
+}
 .btn.play {
-  font-size: 50px;
-  padding: 28px 56px;
+  font-size: 44px;
+  padding: 28px 54px;
   border-radius: 999px;
 }
 .btn:active {

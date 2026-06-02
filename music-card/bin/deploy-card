@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Deploy the music-card to the deck. The eww.yuck in git keeps Font Awesome icons as
+# ASCII tokens (__PREV__ etc.) because text editors strip the raw private-use bytes;
+# this injects the real glyphs on the deck via Python.
+set -euo pipefail
+DECK="${DECK:-minideck@192.168.0.44}"
+SRC="$(cd "$(dirname "$0")/.." && pwd)"          # repo: music-card/
+DST='.config/eww-music'
+
+rsync -a "$SRC/eww/" "$DECK:$DST/"
+rsync -a "$SRC/bin/" "$DECK:$DST/bin/"
+ssh "$DECK" "chmod +x ~/$DST/bin/* && python3 - <<'PY'
+import os
+p = os.path.expanduser('~/.config/eww-music/eww.yuck')
+t = open(p, encoding='utf-8').read()
+for tok, cp in (('__PREV__', 0xf048), ('__PLAY__', 0xf04b),
+                ('__PAUSE__', 0xf04c), ('__NEXT__', 0xf051)):
+    t = t.replace(tok, chr(cp))
+open(p, 'w', encoding='utf-8').write(t)
+print('icons injected:', p)
+PY"
+echo "deployed to $DECK"

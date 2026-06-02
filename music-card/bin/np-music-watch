@@ -8,14 +8,18 @@ EWW="$HOME/.local/bin/eww"
 CFG="$HOME/.config/eww-music"
 WS_MUSIC="2:Music"
 
-# Resolve the Wayland display ourselves (so this works from a systemd user unit that
-# didn't inherit the graphical session env).
+# Resolve the session env ourselves (so this works from a systemd user unit that
+# didn't inherit the graphical session env): Wayland display + sway IPC socket.
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 if [ -z "${WAYLAND_DISPLAY:-}" ]; then
   for s in "$XDG_RUNTIME_DIR"/wayland-*; do
     [ -S "$s" ] && [ "${s##*.}" != "lock" ] && { WAYLAND_DISPLAY="${s##*/}"; break; }
   done
   export WAYLAND_DISPLAY
+fi
+if [ -z "${SWAYSOCK:-}" ]; then
+  for s in "$XDG_RUNTIME_DIR"/sway-ipc.*.sock; do [ -S "$s" ] && { SWAYSOCK="$s"; break; }; done
+  export SWAYSOCK
 fi
 
 open()  { "$EWW" -c "$CFG" open  music >/dev/null 2>&1 || true; }
