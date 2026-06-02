@@ -1,0 +1,19 @@
+// transformer-mini-slab — Dash styling (e-ink: paper + ink)
+* {
+  all: unset;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.dash {
+  background-color: #F4F1EA;
+  color: #1B1B1B;
+  padding: 48px;
+}
+
+.clock     { font-size: 110px; font-weight: bold; }
+.date      { font-size: 28px;  color: #3A3A3A; margin-bottom: 36px; }
+.divider   { background-color: #B7B3A9; min-height: 1px; min-width: 320px; margin: 24px 0; }
+.np-label  { font-size: 13px;  color: #6E6E6E; }
+.track     { font-size: 26px;  color: #1B1B1B; margin-bottom: 40px; }
+.stats     { margin-top: 24px; }
+.stat      { font-size: 18px;  color: #3A3A3A; padding: 0 22px; }

@@ -1,0 +1,29 @@
+;; transformer-mini-slab — Dash (e-ink). Background layer: shows on the empty
+;; Dash workspace, sits behind app windows on the others.
+
+(defpoll time     :interval "10s"  `date +"%H:%M"`)
+(defpoll date     :interval "300s" `date +"%A, %d %B"`)
+(defpoll track    :interval "2s"   `mpc current 2>/dev/null`)
+(defpoll batt     :interval "60s"  `cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1`)
+(defpoll charging :interval "60s"  `cat /sys/class/power_supply/BAT*/status 2>/dev/null | head -1`)
+
+(defwidget dash []
+  (box :class "dash" :orientation "v" :space-evenly false :valign "center" :halign "center"
+    (label :class "clock" :text time)
+    (label :class "date"  :text date)
+    (box :class "divider")
+    (label :class "np-label" :text "NOW PLAYING")
+    (label :class "track" :wrap true :limit-width 42
+           :text {track != "" ? track : "—"})
+    (box :class "stats" :orientation "h" :space-evenly true
+      (label :class "stat" :text "CPU ${round(EWW_CPU.avg, 0)}%")
+      (label :class "stat" :text "RAM ${round(EWW_RAM.used_mem_perc, 0)}%")
+      (label :class "stat" :text {charging == "Charging" ? "BAT ${batt}% +" : "BAT ${batt}%"}))))
+
+(defwindow dashboard
+  :monitor 0
+  :stacking "bg"
+  :exclusive false
+  :focusable false
+  :geometry (geometry :width "100%" :height "100%" :anchor "center")
+  (dash))
