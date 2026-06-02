@@ -1,0 +1,25 @@
+/* e-ink: paper background, ink text, flat */
+* {
+  font-family: "JetBrains Mono", "Font Awesome 6 Free";
+  font-size: 13px;
+  min-height: 0;
+}
+window#waybar {
+  background: #F4F1EA;
+  color: #1B1B1B;
+  border-bottom: 1px solid #B7B3A9;
+}
+#workspaces button {
+  color: #6E6E6E;
+  background: transparent;
+  padding: 0 10px;
+  border-radius: 0;
+}
+#workspaces button.focused,
+#workspaces button.visible {
+  color: #1B1B1B;
+  border-bottom: 2px solid #1B1B1B;
+}
+#clock, #battery, #pulseaudio, #network {
+  padding: 0 12px;
+}

@@ -1,0 +1,63 @@
+### transformer-mini-slab — sway "swipe deck"
+### Modes = workspaces: 1 Dash · 2 Now Playing · 3 Video
+### Hardware: output DSI-1 (portrait panel), touch ELAN22A6
+
+set $mod Mod4
+
+### DISPLAY — rotate the portrait panel to landscape ###########################
+# transform 90; if the image is upside-down, change 90 -> 270 and reload.
+output DSI-1 transform 90
+output "*" bg #F4F1EA solid_color
+
+### INPUT — map touch + stylus onto the (rotated) output ######################
+input "1267:8870:ELAN22A6:00_04F3:22A6" map_to_output DSI-1
+input "1267:8870:ELAN22A6:00_04F3:22A6_Stylus" map_to_output DSI-1
+
+### E-INK BASELINE — flat, calm, fast ########################################
+default_border none
+default_floating_border none
+gaps inner 0
+gaps outer 0
+font pango:JetBrains Mono 11
+
+### WORKSPACES = modes #######################################################
+set $ws1 "1:Dash"
+set $ws2 "2:Music"
+set $ws3 "3:Video"
+
+### AUTOSTART — one app per mode #############################################
+exec waybar
+exec foot -a dash                 # Dash placeholder (eww widgets come later)
+exec foot -a music ncmpcpp        # Now Playing (ncmpcpp has a built-in visualiser)
+for_window [app_id="dash"]  move to workspace $ws1
+for_window [app_id="music"] move to workspace $ws2
+assign [app_id="mpv"] $ws3        # Video: mpv lands here on demand
+workspace $ws1
+
+### TOUCH SWIPE between modes (lisgd) ########################################
+# 1-finger swipe L/R -> prev/next workspace.
+# -o is orientation; it must match the output transform. Try -o 1 for transform 90
+# (use -o 3 if you switch to transform 270). Tune if a swipe goes the wrong way.
+exec lisgd -o 1 -g "1,LR,*,*,swaymsg workspace prev" -g "1,RL,*,*,swaymsg workspace next"
+
+### KEYBOARD (when the keyboard's attached) ##################################
+bindsym $mod+1 workspace $ws1
+bindsym $mod+2 workspace $ws2
+bindsym $mod+3 workspace $ws3
+bindsym $mod+Return exec foot
+bindsym $mod+d exec fuzzel
+bindsym $mod+Shift+q kill
+bindsym $mod+Shift+c reload
+bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit sway?' -B 'Yes' 'swaymsg exit'
+
+# volume / brightness / media
+bindsym XF86AudioRaiseVolume exec pamixer -i 5
+bindsym XF86AudioLowerVolume exec pamixer -d 5
+bindsym XF86AudioMute        exec pamixer -t
+bindsym XF86MonBrightnessUp   exec brightnessctl set +10%
+bindsym XF86MonBrightnessDown exec brightnessctl set 10%-
+bindsym XF86AudioPlay exec playerctl play-pause
+bindsym XF86AudioNext exec playerctl next
+bindsym XF86AudioPrev exec playerctl previous
+
+include /etc/sway/config.d/*
