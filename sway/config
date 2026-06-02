@@ -28,9 +28,7 @@ set $ws3 "3:Video"
 ### AUTOSTART — one app per mode #############################################
 # exec waybar   # hidden — the eww Dash top bar replaces it
 exec /home/minideck/.local/bin/dash-watch   # Dash (eww), gated to the Dash workspace (ws1)
-# exec /home/minideck/.config/eww-music/bin/np-music-watch   # PARKED — overlay sticks; fixing the gating before re-enabling
-exec foot -a music ncmpcpp        # runs under the card overlay; keeps the Music workspace alive
-for_window [app_id="music"] move to workspace $ws2
+exec /home/minideck/.local/bin/card-watch   # Music card (eww), gated to the Music workspace (ws2)
 assign [app_id="mpv"] $ws3        # Video: mpv lands here on demand
 workspace $ws1
 

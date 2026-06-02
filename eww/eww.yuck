@@ -42,3 +42,44 @@
   (box :class "dash" :orientation "v" :space-evenly false
     (topbar)
     (body)))
+
+;; ============================ Music card (ws2) ============================
+(defpoll np_title  :interval "1s"  `mpc -f '%title%'  current 2>/dev/null`)
+(defpoll np_artist :interval "1s"  `mpc -f '%artist%' current 2>/dev/null`)
+(defpoll vol       :interval "2s"  `wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}'`)
+(defpoll queue     :interval "2s"  `mpc -f '%position%. %artist% - %title%' playlist 2>/dev/null | head -25`)
+(defpoll arrivals  :interval "60s" `~/.local/bin/new-arrivals 2>/dev/null`)
+
+(defwidget musiccard-w []
+  (box :class "card-root" :orientation "v" :space-evenly false :valign "center" :halign "center"
+    (label :class "np-title"  :text {np_title  != "" ? np_title  : "—"} :limit-width 42)
+    (label :class "np-artist" :text {np_artist != "" ? np_artist : ""}  :limit-width 42)
+    (box :class "row" :orientation "h" :space-evenly true
+      (button :class "btn"     :onclick "~/.local/bin/music-ctl prev"   "‹ prev")
+      (button :class "btn big" :onclick "~/.local/bin/music-ctl toggle" "play / pause")
+      (button :class "btn"     :onclick "~/.local/bin/music-ctl next"   "next ›"))
+    (box :class "row" :orientation "h" :space-evenly true
+      (button :class "btn"     :onclick "~/.local/bin/music-ctl shuffleartist" "shuffle artist")
+      (button :class "btn"     :onclick "~/.local/bin/music-ctl shuffleall"    "shuffle all")
+      (button :class "btn fav" :onclick "~/.local/bin/music-ctl favorite"      "+ favorite"))
+    (box :class "row" :orientation "h" :space-evenly true
+      (button :class "btn" :onclick "~/.local/bin/music-ctl voldown" "vol −")
+      (label  :class "vol" :text "${vol}%")
+      (button :class "btn" :onclick "~/.local/bin/music-ctl volup"   "vol +")
+      (button :class "btn" :onclick "~/.local/bin/music-ctl mute"    "mute"))
+    (label :class "sec" :text "NEW ARRIVALS")
+    (box :class "arrivals" :orientation "v" :space-evenly false
+      (for a in arrivals
+        (button :class "album" :onclick "~/.local/bin/music-ctl playalbum '${a.path}'"
+          (label :class "album-name" :text {a.name} :limit-width 48 :xalign 0))))
+    (label :class "sec" :text "QUEUE")
+    (scroll :class "queue" :vscroll true
+      (label :text {queue != "" ? queue : "queue empty"} :xalign 0))))
+
+(defwindow musiccard
+  :monitor 0
+  :stacking "bg"
+  :exclusive false
+  :focusable false
+  :geometry (geometry :width "100%" :height "100%" :anchor "center")
+  (musiccard-w))

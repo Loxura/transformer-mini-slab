@@ -41,3 +41,21 @@
 .ticker-card { min-width: 300px; }
 .ticker-h    { font-size: 13px; color: #7aa2f7; margin-bottom: 14px; }
 .ticker      { font-size: 26px; font-weight: bold; color: #9ece6a; }
+
+/* ===== music card (ws2) ===== */
+.card-root { background-color: #16161e; color: #c0caf5; padding: 40px 50px; }
+.np-title  { font-size: 34px; font-weight: bold; }
+.np-artist { font-size: 20px; color: #7aa2f7; margin-bottom: 22px; }
+.row       { margin: 7px 0; }
+.btn       { background-color: #1a1b26; border: 1px solid #292e42; border-radius: 12px;
+             padding: 14px 22px; margin: 0 8px; color: #c0caf5; font-size: 17px; }
+.btn:hover { background-color: #292e42; }
+.btn.big   { font-size: 19px; padding: 14px 34px; }
+.btn.fav   { color: #9ece6a; }
+.vol       { font-size: 18px; color: #e0af68; padding: 0 14px; }
+.sec       { font-size: 13px; color: #565f89; margin-top: 22px; margin-bottom: 8px; }
+.album     { background-color: #1a1b26; border-radius: 10px; padding: 9px 16px; margin: 3px 0; }
+.album:hover { background-color: #292e42; }
+.album-name  { color: #c0caf5; font-size: 16px; }
+.queue       { min-height: 150px; }
+.queue label { color: #9aa5ce; font-size: 14px; }
