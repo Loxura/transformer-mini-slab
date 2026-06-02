@@ -7,7 +7,7 @@
 #   */10 * * * * /path/to/sync-to-tablet.sh >> ~/sync-tablet.log 2>&1
 set -euo pipefail
 
-TABLET="${TABLET:-minideck@192.168.0.43}"
+TABLET="${TABLET:-minideck@192.168.0.44}"   # set a DHCP reservation so this stops drifting
 STAGING="${STAGING:-$(cd "$(dirname "$0")" && pwd)/library}"
 DEST="${DEST:-Music/}"            # relative to the tablet user's home
 
