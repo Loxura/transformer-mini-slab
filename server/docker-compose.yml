@@ -12,9 +12,9 @@ services:
       - /dev/net/tun:/dev/net/tun
     environment:
       VPN_SERVICE_PROVIDER: mullvad
-      VPN_TYPE: openvpn
-      OPENVPN_USER: "${OPENVPN_USER}"
-      OPENVPN_PASSWORD: "${OPENVPN_PASSWORD:-m}"
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY}"
+      WIREGUARD_ADDRESSES: "${WIREGUARD_ADDRESSES}"
       SERVER_COUNTRIES: "${VPN_COUNTRY:-Canada}"
       FIREWALL_OUTBOUND_SUBNETS: "172.16.0.0/12"   # let Lidarr reach qBit's webui via gluetun
       TZ: "America/Winnipeg"
