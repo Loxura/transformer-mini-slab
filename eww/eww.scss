@@ -7,37 +7,37 @@
 .dash {
   background-color: #16161e;
   color: #c0caf5;
-  padding: 44px 40px 36px 40px;   // top pad clears the waybar strip
+  padding: 28px 34px;
 }
 
 /* ---- top bar ---- */
-.topbar {
-  font-size: 18px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #292e42;
-}
-.tb-clock { font-size: 30px; font-weight: bold; color: #c0caf5; }
-.tb-item  { color: #9aa5ce; margin: 0 10px; }
-.tb-sep   { color: #3b4261; }
-.tb-ip    { color: #565f89; margin-left: 14px; }
+.topbar  { font-size: 18px; padding-bottom: 14px; border-bottom: 1px solid #292e42; }
+.tb-date { font-size: 24px; font-weight: bold; color: #c0caf5; }
+.tb-item { color: #9aa5ce; margin: 0 10px; }
+.tb-sep  { color: #3b4261; }
+.tb-ip   { color: #565f89; margin-left: 14px; }
 
 /* ---- body ---- */
-.body { margin-top: 34px; }
-
+.body { margin-top: 30px; }
 .card {
   background-color: #1a1b26;
   border: 1px solid #292e42;
   border-radius: 18px;
-  padding: 28px 34px;
-  margin: 0 18px;
+  padding: 26px 30px;
+  margin: 0 16px;
 }
 
-/* calendar */
-.cal             { font-size: 16px; color: #c0caf5; }
-.cal:selected    { background-color: #7aa2f7; color: #16161e; border-radius: 8px; }
-.cal.header      { color: #7aa2f7; }
+/* analog clock */
+.clock-card { padding: 30px; }
 
-/* markets ticker */
-.ticker-card { min-width: 420px; }
-.ticker-h    { font-size: 14px; color: #7aa2f7; margin-bottom: 16px; }
-.ticker      { font-size: 44px; font-weight: bold; color: #9ece6a; }
+/* calendar (bigger) + events */
+.cal-card  { min-width: 380px; }
+.cal       { font-size: 22px; color: #c0caf5; }
+.cal:selected { background-color: #7aa2f7; color: #16161e; border-radius: 8px; }
+.events-h  { font-size: 13px; color: #7aa2f7; margin-top: 22px; margin-bottom: 10px; }
+.events    { font-size: 16px; color: #9aa5ce; }
+
+/* markets ticker (smaller) */
+.ticker-card { min-width: 300px; }
+.ticker-h    { font-size: 13px; color: #7aa2f7; margin-bottom: 14px; }
+.ticker      { font-size: 26px; font-weight: bold; color: #9ece6a; }

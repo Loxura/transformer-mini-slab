@@ -26,7 +26,7 @@ set $ws2 "2:Music"
 set $ws3 "3:Video"
 
 ### AUTOSTART — one app per mode #############################################
-exec waybar
+# exec waybar   # hidden — the eww Dash top bar replaces it
 exec /home/minideck/.local/bin/eww open dashboard   # Dash: eww widgets (background layer)
 exec foot -a music ncmpcpp        # Now Playing (ncmpcpp has a built-in visualiser)
 for_window [app_id="music"] move to workspace $ws2

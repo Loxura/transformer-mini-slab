@@ -1,28 +1,34 @@
-;; transformer-mini-slab — Dash (dark, full-screen, utility). Top bar + body layout.
-;; Background layer: shows on the empty Dash workspace, behind app windows elsewhere.
+;; transformer-mini-slab — Dash (dark, full-screen). Top bar + body.
+;; Body: analog clock · calendar + upcoming events · markets ticker.
 
-(defpoll time     :interval "10s"   `date +"%H:%M"`)
-(defpoll date     :interval "300s"  `date +"%a %d %b"`)
+(defpoll date     :interval "300s"  `date +"%A, %d %B"`)
 (defpoll weather  :interval "1800s" `curl -s 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null || wget -qO- 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null`)
 (defpoll ssid     :interval "30s"   `iw dev wlp1s0 link 2>/dev/null | sed -n 's/.*SSID: //p'`)
 (defpoll ipaddr   :interval "30s"   `ip -4 -o addr show wlp1s0 2>/dev/null | awk '{print $4}' | head -1`)
+(defpoll clockimg :interval "20s"   `~/.local/bin/analog-clock`)
+(defpoll events   :interval "300s"  `cat ~/.config/eww/events.txt 2>/dev/null`)
 (deflisten ticker :initial "loading markets…" `~/.local/bin/stock-ticker`)
 
 (defwidget topbar []
   (box :class "topbar" :orientation "h" :space-evenly false :valign "start"
-    (label :class "tb-clock" :text time)
+    (label :class "tb-item tb-date" :text date)
     (box :hexpand true)
-    (label :class "tb-item" :text date)
-    (label :class "tb-sep"  :text "•")
     (label :class "tb-item" :text {weather != "" ? weather : "—"})
     (label :class "tb-sep"  :text "•")
     (label :class "tb-item" :text {ssid != "" ? ssid : "WiFi"})
-    (label :class "tb-ip"   :text {ipaddr != "" ? ipaddr : ""})))
+    (label :class "tb-ip"   :text ipaddr)))
 
 (defwidget body []
-  (box :class "body" :orientation "h" :space-evenly true :vexpand true
-    (box :class "card cal-card" :valign "center" :halign "center"
-      (calendar :class "cal"))
+  (box :class "body" :orientation "h" :space-evenly false :vexpand true
+    ;; analog clock
+    (box :class "card clock-card" :valign "center" :halign "center"
+      (image :class "analog" :path clockimg :image-width 240 :image-height 240))
+    ;; calendar + upcoming events
+    (box :class "card cal-card" :orientation "v" :space-evenly false :hexpand true
+      (calendar :class "cal")
+      (label :class "events-h" :text "UPCOMING")
+      (label :class "events" :text {events != "" ? events : "nothing scheduled"} :wrap true :xalign 0))
+    ;; markets
     (box :class "card ticker-card" :orientation "v" :space-evenly false :valign "center" :halign "center"
       (label :class "ticker-h" :text "MARKETS")
       (label :class "ticker"   :text ticker))))

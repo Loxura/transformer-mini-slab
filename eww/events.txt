@@ -1,0 +1,4 @@
+Jun 05  ·  example — dentist 3:00 PM
+Jun 12  ·  example — rent due
+Jun 20  ·  example — flight 9:40 AM
+(edit ~/.config/eww/events.txt)
