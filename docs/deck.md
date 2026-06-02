@@ -51,3 +51,24 @@ glmark2                                  # GPU score = your effects budget
 5. full-colour Video mode
 
 Palette + motion rules: [aesthetic.md](aesthetic.md).
+
+## Autostart on boot (appliance mode)
+Power on → straight into the deck, no login. Two pieces (no extra packages):
+
+1. **Autologin minideck on tty1** — install the drop-in:
+   ```sh
+   sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
+   sudo cp sway/getty-autologin.conf /etc/systemd/system/getty@tty1.service.d/autologin.conf
+   sudo systemctl daemon-reload
+   ```
+2. **Launch sway on tty1 login** — append to `~/.profile`:
+   ```sh
+   if [ -z "$WAYLAND_DISPLAY" ] && [ "$XDG_VTNR" = "1" ]; then
+       exec sway
+   fi
+   ```
+
+Boot → agetty autologins minideck on tty1 → `.profile` execs sway → deck. Exiting sway
+(`Super+Shift+E`) just relaunches it. Need a plain shell? Switch VT with **Ctrl+Alt+F2**.
+To undo: delete the drop-in + the `.profile` block.
+
