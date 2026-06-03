@@ -10,6 +10,9 @@ EWW="$HOME/.local/bin/eww"
 # the release at the surface origin (0,0) -> every tap activated the top-left widget.
 # Pointer-emulated events always carry coords (incl. release), so taps land correctly.
 export GDK_CORE_DEVICE_EVENTS=1
+# Persistent (non-overlay) scrollbars: the auto-hiding overlay ones are impossible to
+# grab on a touchscreen. With this, the styled slider (eww.scss) is a real drag target.
+export GTK_OVERLAY_SCROLLING=0
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 if [ -z "${WAYLAND_DISPLAY:-}" ]; then
