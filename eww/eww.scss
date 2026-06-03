@@ -19,86 +19,175 @@ button {
   min-width: 0;
 }
 
-/* ===== Dash ===== */
-.dash {
-  background-color: #16161e;
-  color: #c0caf5;
-  padding: 44px 40px 36px 40px;
+/* Subtle but grabbable scrollbar. Overlay (auto-hiding) scrolling is OFF via
+   GTK_OVERLAY_SCROLLING=0 in deck-launch, so this stays visible whenever a list
+   overflows -- a real drag target instead of touch-kinetic scrolling. The 5px
+   transparent border keeps the visible slider thin while the hit area stays ~18px. */
+/* Fat enough to grab with a finger: ~26px bar, ~18px slider. Subtle until touched. */
+scrollbar { background-color: transparent; border: none; min-width: 26px; }
+scrollbar trough { background-color: rgba(255,255,255,0.06); border-radius: 11px; min-width: 22px; margin: 8px 3px; }
+scrollbar slider {
+  min-width: 18px;
+  min-height: 90px;
+  border-radius: 9px;
+  background-color: rgba(255,255,255,0.28);
 }
-.topbar  { font-size: 18px; padding-bottom: 14px; border-bottom: 1px solid #292e42; }
-.tb-date { font-size: 24px; font-weight: bold; color: #c0caf5; }
-.tb-item { color: #9aa5ce; margin: 0 10px; }
-.tb-sep  { color: #3b4261; }
-.tb-ip   { color: #565f89; margin-left: 14px; }
-.body    { margin-top: 30px; }
-.card    { background-color: #1a1b26; border: 1px solid #292e42; border-radius: 18px; padding: 26px 30px; margin: 0 16px; }
-.clock-card { padding: 30px; }
-.cal-card   { min-width: 380px; }
-.cal        { font-size: 22px; color: #c0caf5; }
-.cal:selected { background-color: #7aa2f7; color: #16161e; border-radius: 8px; }
-.events-h   { font-size: 13px; color: #7aa2f7; margin-top: 22px; margin-bottom: 10px; }
-.events     { font-size: 16px; color: #9aa5ce; }
-.ticker-card { min-width: 300px; }
-.ticker-h   { font-size: 13px; color: #7aa2f7; margin-bottom: 14px; }
-.ticker     { font-size: 26px; font-weight: bold; color: #9ece6a; }
+scrollbar slider:active { background-color: rgba(255,255,255,0.6); }
+scrollbar button { min-width: 0; min-height: 0; -gtk-icon-source: none; }
 
-/* ===== Music card (ws2) - landscape two-column; palette adapts via inline :style ===== */
+/* ===== Neo-brutalist tokens (P1) ===== */
+/* Hard structure: solid ink borders, square corners, hard OFFSET block-shadows (no
+   blur). One mixin stamps the look; every control below is a 1-line @include. */
+$ink:    #111111;   /* borders, heavy text, stamped fills */
+$paper:  #f2f2f2;   /* light button face */
+$bd:     3px;       /* standard hard border */
+$shadow: 5px;       /* hard offset shadow distance */
+
+@mixin cell {
+  border: $bd solid $ink;
+  border-radius: 0;
+  background-color: $paper;
+  box-shadow: $shadow $shadow 0 $ink;
+}
+
+/* Fixed CLASH palette (album-independent) -- the loud color comes from HERE, not the
+   cover, so the card stops being monochrome-per-album. These deliberately fight the
+   album hue. The album hue now only lives in cover.bg + the art + the lit VU segments. */
+$c-orange: #FF4D00;
+$c-blue:   #2962FF;
+$c-yellow: #FFE600;
+$c-pink:   #FF2E93;
+$c-lime:   #00E676;
+$c-amber:  #E0AF68;
+$c-red:    #D6005A;
+
+/* the deck signature atom: a hard-bordered, hard-offset-shadow, uppercase sticker. */
+@mixin sticker($fill, $fg) {
+  border: $bd solid $ink; border-radius: 0;
+  background-color: $fill; color: $fg;
+  box-shadow: 4px 4px 0 $ink;
+  font-weight: bold; font-size: 14px;
+  padding: 5px 11px;
+  /* no letter-spacing: GTK3 omits it from the width request -> the sticker (halign
+     start, hugs content) would ellipsize. Stickers stay tight instead. */
+}
+
+/* ===== Dash (ws1) -- brutalist: dark base + pinstripe, paper-bordered cards w/ clash
+   offset shadows, badge-chip section headers ===== */
+.dash {
+  background-color: #161616;
+  background-image: repeating-linear-gradient(45deg,
+    rgba(255,255,255,0) 0px, rgba(255,255,255,0) 23px,
+    rgba(255,255,255,0.03) 23px, rgba(255,255,255,0.03) 27px);
+  color: $paper;
+  padding: 40px 40px 32px 40px;
+}
+.topbar  { font-size: 18px; padding-bottom: 14px; border-bottom: 3px solid $paper; }
+.tb-date { font-size: 26px; font-weight: bold; color: $paper; }
+.tb-item { color: #c8c8c8; margin: 0 10px; }
+.tb-sep  { color: #6e6e6e; }
+.tb-ip   { color: #8a8a8a; margin-left: 14px; }
+.body    { margin-top: 34px; }
+/* dark cards, thick PAPER border (reads on dark), per-card CLASH offset shadow */
+.card        { background-color: #1c1c1c; border: 3px solid $paper; border-radius: 0; padding: 24px 28px; margin: 0 18px; }
+.clock-card  { padding: 26px; box-shadow: 8px 8px 0 $c-orange; }
+.cal-card    { min-width: 380px; box-shadow: 8px 8px 0 $c-blue; }
+.ticker-card { min-width: 300px; box-shadow: 8px 8px 0 $c-lime; }
+.cal          { font-size: 22px; color: $paper; }
+.cal:selected { background-color: $c-yellow; color: $ink; border-radius: 0; }   /* selected day = hard yellow block */
+.events-h    { @include sticker($paper, $ink); margin-top: 20px; margin-bottom: 12px; }
+.events      { font-size: 16px; color: #c8c8c8; }
+.ticker-h    { @include sticker($c-lime, $ink); margin-bottom: 16px; }
+.ticker      { font-size: 28px; font-weight: bold; color: $c-lime; }
+
+/* ===== Music card (ws2) - DECK v2: clash color + editorial type + mechanical VU ===== */
 .card-root { padding: 0; }
-.mc-art      { padding: 80px; }
-.mc-info     { padding: 36px 54px; }
-.cover       { border-radius: 18px; }
-/* breathing glow -- box-shadow size is set inline from 'level'; transition tweens frames */
-.cover-wrap  { border-radius: 18px; transition: box-shadow 110ms ease-out; }
-.np-title  { font-size: 32px; font-weight: bold; }
-.np-artist { font-size: 19px; margin-top: 4px; margin-bottom: 26px; }
-.controls  { margin: 7px 0; }
-.ico       { background-color: rgba(255,255,255,0.08); border-radius: 40px; padding: 13px 16px; margin: 0 6px; }
-.ico:active { background-color: rgba(255,255,255,0.20); }
-.ico.big   { padding: 15px 19px; }
-.ico.sm    { padding: 7px 9px; margin: 0; }
+/* faint diagonal ink pinstripe over the album-tinted bg -- kills the dead void.
+   (GTK3 3.24 renders repeating-linear-gradient; if a build drops it, the inline
+   background-color: cover.bg underneath is the graceful fallback -- layout survives.) */
+.deck-tex    { background-image: repeating-linear-gradient(45deg,
+                 rgba(17,17,17,0) 0px, rgba(17,17,17,0) 23px,
+                 rgba(17,17,17,0.13) 23px, rgba(17,17,17,0.13) 27px); }
+.mc-art      { padding: 64px 56px; }
+/* borders-on-borders: ink outer frame + paper mat + ink inner frame = mounted object.
+   The hard 3-color fixed-CLASH offset block-shadow is set inline in eww.yuck. */
+.cover-wrap  { border-radius: 0; border: 5px solid $ink; padding: 6px; background-color: $paper; }
+.cover       { border-radius: 0; border: 3px solid $ink; }
+.cover-wrap.paused { border-color: $c-red; }
+
+/* info column: hard-left, anchored to an ink seam (lopsided -- it claims the bigger share) */
+.mc-info     { padding: 26px 36px 26px 44px; border-left: $bd solid $ink; }
+.track-no    { font-size: 104px; font-weight: 800; letter-spacing: -6px; margin-bottom: -24px; }
+.np-title    { font-size: 60px; font-weight: 800; letter-spacing: -3px; margin-bottom: 0; }
+.np-artist   { font-size: 16px; font-weight: normal; letter-spacing: 4px; margin-top: 6px; margin-bottom: 22px; }
+
+/* deck signature badges (sticker atom). UPPERCASE comes from literal text / `tr` polls. */
+.badge       { @include sticker($paper, $ink); }
+.badge.ink   { @include sticker($ink, $paper); }
+.upnext-row  { margin-top: 18px; }
+
+/* stepped VU meter -- 12 hard segments; fill count = level, color zoned. The stepping
+   on each `level` push from the audio-level deflisten IS the (cheap) animation. */
+.vu          { margin: 14px 0 6px 0; }
+.vu-seg      { min-width: 22px; min-height: 22px; margin-right: 5px; border: 2px solid $ink; border-radius: 0; background-color: $paper; }
+.controls  { margin: 10px 0; }
+/* P2: stamped rectangular cells instead of soft circles. Big finger targets. */
+.ico       { @include cell; padding: 15px 19px; margin: 0 8px; }
+.ico:active { box-shadow: 0 0 0 $ink; }   /* press: the block "stamps" flat */
+.ico.big   { padding: 17px 24px; }        /* play/pause: lime block (ink-fill when paused), set inline */
+.ico.fav   { background-color: $c-pink; }  /* the one loud pop in the secondary row */
+.ico.sm    { padding: 9px 11px; margin: 0 5px; box-shadow: 3px 3px 0 $ink; }
+.ico.sm:active { box-shadow: 0 0 0 $ink; }
 .ico.sm .g { font-size: 15px; }
 .corner    { padding: 18px 22px 0 0; }
-.g         { font-family: "FontAwesome"; font-size: 22px; color: #e6e6ee; }
+.g         { font-family: "FontAwesome"; font-size: 22px; color: $ink; }   /* ink on paper */
 .ico.big .g { font-size: 30px; }
-.ico.fav .g { color: #f7768e; }
+.ico.fav .g { color: $ink; }              /* ink heart on the pink face */
 .vol       { color: #e0af68; font-size: 15px; padding: 0 10px; }
 .sec       { font-size: 13px; color: rgba(255,255,255,0.55); margin: 16px 0 8px 0; }
 .album     { background-color: rgba(255,255,255,0.07); border-radius: 10px; padding: 9px 14px; margin: 3px 0; }
 .album:active { background-color: rgba(255,255,255,0.18); }
 .album-name  { color: #e6e6ee; font-size: 15px; }
-.nextup      { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px; }
+.nextup      { font-size: 17px; font-weight: bold; margin-left: 12px; }  /* color set inline (cover.text) */
 
-/* bluetooth panel (full-screen overlay) */
+/* bluetooth panel (full-screen overlay) -- shares .brow-row cells + .grid-title badge */
 .bt-root   { padding: 28px 36px; }
-.bt-sub    { color: rgba(255,255,255,0.55); font-size: 15px; margin: 4px 0 14px 0; }
-.bt-mac    { color: rgba(255,255,255,0.4); font-size: 12px; }
-.bt-state  { color: #9ece6a; font-size: 18px; margin-left: 14px; }
-.bt-scrollpad { padding-top: 96px; }   /* clear the floating header (bar + status line) */
-.bt-on     { background-color: rgba(158,206,106,0.16); }
-.bt-on:active { background-color: rgba(158,206,106,0.26); }
+.bt-sub    { color: $paper; font-size: 15px; margin: 6px 0 14px 0; }
+.bt-mac    { color: #6e6e6e; font-size: 12px; }           /* on the paper row -> gray ink */
+.bt-state  { color: $ink; font-size: 18px; margin-left: 14px; }
+.bt-scrollpad { padding-top: 104px; }   /* clear the floating header (badge + status line) */
+.bt-on     { background-color: $c-lime; }                 /* connected = loud lime cell */
+.bt-on:active { box-shadow: 0 0 0 $ink; }
 
-/* ---- album-cover grid browser (full-screen overlay) ---- */
+/* ---- album-cover grid browser (full-screen overlay) -- paper-mounted square tiles ---- */
 .grid-root    { padding: 28px 36px; }
-.grid-bar     { margin-bottom: 16px; }
-.grid-title   { color: #e6e6ee; font-size: 24px; font-weight: bold; margin-left: 16px; }
+.grid-bar     { margin-bottom: 18px; }
+/* title = paper badge chip (also used by the bluetooth panel header) */
+.grid-title   { background-color: $paper; color: $ink; font-size: 20px; font-weight: bold;
+                padding: 6px 14px; border: $bd solid $ink; box-shadow: 4px 4px 0 $ink; margin-left: 14px; }
 .grid-row     { margin: 2px 0; }
-/* track list starts at the scroll's top edge; pad so the floating back button clears row 1 */
-.grid-scrollpad { padding-top: 56px; }
-.tile         { padding: 14px; margin: 6px; border-radius: 16px; background-color: rgba(255,255,255,0.04); }
-.tile:active   { background-color: rgba(255,255,255,0.14); }
-.tile-art     { border-radius: 12px; }
-.tile-ph      { min-width: 210px; min-height: 210px; border-radius: 12px; }
+.grid-scrollpad { padding-top: 60px; }
+.tile         { padding: 12px; margin: 10px; border-radius: 0; background-color: $paper;
+                border: $bd solid $ink; box-shadow: 6px 6px 0 $c-blue; }
+.tile:active  { box-shadow: 0 0 0 $ink; }
+.tile-art     { border-radius: 0; border: 3px solid $ink; }
+.tile-ph      { min-width: 210px; min-height: 210px; border-radius: 0; border: 3px solid $ink; }
 .tile-ph-g    { font-size: 46px; color: rgba(0,0,0,0.35); }
-.tile-name    { color: #e6e6ee; font-size: 17px; font-weight: bold; margin-top: 12px; }
-.tile-artist  { color: rgba(255,255,255,0.55); font-size: 14px; margin-top: 2px; }
+.tile-name    { color: $ink; font-size: 17px; font-weight: bold; margin-top: 12px; }
+.tile-artist  { color: #6e6e6e; font-size: 14px; margin-top: 2px; }
 
-/* per-album track list (reused by the grid's album view) */
-.brow-row     { padding: 16px 18px; margin: 4px 0; border-radius: 12px; background-color: rgba(255,255,255,0.05); }
-.brow-row:active { background-color: rgba(255,255,255,0.16); }
-.brow-ico     { font-size: 20px; color: rgba(255,255,255,0.7); margin-right: 18px; }
-.brow-label   { color: #e6e6ee; font-size: 20px; }
-.play-all     { background-color: rgba(255,255,255,0.12); margin-bottom: 10px; }
+/* per-album track list -- brutalist paper cells (reused by the grid album view AND bluetooth) */
+.brow-row     { @include cell; padding: 15px 18px; margin: 7px 0; }
+.brow-row:active { box-shadow: 0 0 0 $ink; }
+.brow-ico     { font-size: 20px; color: $ink; margin-right: 18px; }
+.brow-label   { color: $ink; font-size: 20px; }
+.play-all     { background-color: $c-lime; margin-bottom: 12px; }   /* play-album = loud lime cell */
 .play-all .brow-label { font-weight: bold; }
+
+/* pager (prev / X of Y / next) -- replaces touch scrolling in the album views */
+.pager       { padding: 8px 0 16px 0; }
+.pager .ico  { margin: 0 22px; }
+.pager-lbl   { color: $paper; font-size: 17px; }
 
 /* ---- full-screen immersive cover ---- */
 .immersive    { }

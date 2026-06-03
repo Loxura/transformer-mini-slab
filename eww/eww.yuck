@@ -30,10 +30,10 @@
       (image :class "analog" :path clockimg :image-width 240 :image-height 240))
     (box :class "card cal-card" :orientation "v" :space-evenly false :hexpand true
       (calendar :class "cal")
-      (label :class "events-h" :text "UPCOMING")
+      (label :class "events-h" :text "UPCOMING" :halign "start")
       (label :class "events" :text {events != "" ? events : "nothing scheduled"} :wrap true :xalign 0))
     (box :class "card ticker-card" :orientation "v" :space-evenly false :valign "center" :halign "center"
-      (label :class "ticker-h" :text "MARKETS")
+      (label :class "ticker-h" :text "MARKETS" :halign "center")
       (label :class "ticker"   :text ticker))))
 
 (defwidget dash-w []
@@ -43,7 +43,8 @@
 
 ;; ============================ Music card (ws2) ============================
 (defpoll np_title  :interval "1s"   `mpc -f '%title%'  current 2>/dev/null`)
-(defpoll np_artist :interval "1s"   `mpc -f '%artist%' current 2>/dev/null`)
+(defpoll np_artist :interval "1s"   `mpc -f '%artist%' current 2>/dev/null | tr a-z A-Z`)
+(defpoll np_track  :interval "1s"   `mpc -f '%track%'  current 2>/dev/null`)
 (defpoll state     :interval "1s"   `mpc status 2>/dev/null | grep -oE 'playing|paused' | head -1`)
 (defpoll vol       :interval "2s"   `wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}'`)
 (defpoll nextup    :interval "1s"   `pos=$(mpc -f %position% current 2>/dev/null); [ -n "$pos" ] && mpc -f '%artist% - %title%' playlist 2>/dev/null | sed -n "$((pos+1))p"`)
@@ -54,13 +55,20 @@
 ;; full-screen immersive cover view (toggled by tapping the cover)
 (defvar immersive false)
 
+;; VU meter segment indices (12 hard segments; fill driven by `level`)
+(defvar vu_segs "[0,1,2,3,4,5,6,7,8,9,10,11]")
+
 ;; album-cover grid browser state (driven imperatively by ~/.local/bin/album-grid)
 (defvar gridding   false)
 (defvar gridview   "albums")   ;; "albums" = cover grid, "album" = one album's tracks
 (defvar gridtitle  "Albums")
 (defvar gridaa     "")
-(defvar grid       "[]")       ;; rows (arrays) of album objects {aa,album,art,key}
-(defvar gridtracks "[]")
+(defvar grid       "[]")       ;; rows (arrays) of album objects {aa,album,art,key} -- CURRENT PAGE only
+(defvar gridtracks "[]")       ;; current page of tracks
+(defvar grid_page   0)         ;; album-grid pager (driven by album-grid gridpage/trackpage)
+(defvar grid_pages  1)
+(defvar track_page  0)
+(defvar track_pages 1)
 
 ;; bluetooth pairing/connection panel state (driven by ~/.local/bin/bt-ctl)
 (defvar bting    false)
@@ -71,59 +79,57 @@
 ;; ---- album-cover grid browser (full-screen overlay) ----
 (defwidget album-grid []
   (box :class "grid-root" :orientation "v" :space-evenly false :visible gridding :vexpand true :hexpand true :style "background-color: ${cover.bg};"
-    (box :class "grid-bar" :visible {gridview != "album"} :orientation "h" :space-evenly false :valign "center"
+    (box :class "grid-bar" :orientation "h" :space-evenly false :valign "center"
       (button :class "ico sm" :onclick {gridview == "album" ? "~/.local/bin/album-grid back" : "~/.local/bin/album-grid close"}
         (label :class "g" :text {gridview == "album" ? icons.back : icons.close}))
       (label :class "grid-title" :text gridtitle :limit-width 40 :xalign 0)
       (box :hexpand true))
-    ;; albums view — rows of tappable cover tiles
-    (box :visible {gridview == "albums"} :vexpand true :hexpand true
-      (scroll :vscroll true :vexpand true :hexpand true
-        (box :orientation "v" :space-evenly false :halign "center"
-          (for row in grid
-            (box :class "grid-row" :orientation "h" :space-evenly false :halign "center"
-              (for it in row
-                (button :class "tile" :onclick "~/.local/bin/album-grid album '${it.aa}' '${it.album}'"
-                  (box :orientation "v" :space-evenly false :halign "center"
-                    (overlay
-                      (box :class "tile-ph" :halign "center" :valign "center" :style "background-color: ${cover.accent};"
-                        (label :class "tile-ph-g g" :text {icons.note}))
-                      (image :class "tile-art" :visible {it.art != ""} :path {it.art} :image-width 210 :image-height 210))
-                    (label :class "tile-name"   :text {it.album} :limit-width 20 :xalign 0.5)
-                    (label :class "tile-artist" :text {it.aa}    :limit-width 24 :xalign 0.5)))))))))
-    ;; one album — its tracks, plus a play-all row
-    (box :visible {gridview == "album"} :vexpand true :hexpand true
-      (overlay
-        (scroll :vscroll true :vexpand true
-          (box :class "grid-scrollpad" :orientation "v" :space-evenly false
-            (button :class "brow-row play-all" :onclick "~/.local/bin/album-grid playalbum '${gridaa}' '${gridtitle}'"
-              (box :orientation "h" :space-evenly false :valign "center"
-                (label :class "brow-ico g" :text {icons.play})
-                (label :class "brow-label" :text "Play album" :xalign 0)))
-            (for t in gridtracks
-              (button :class "brow-row" :onclick "~/.local/bin/album-grid playtrack '${t.file}'"
-                (box :orientation "h" :space-evenly false :valign "center"
-                  (label :class "brow-ico g" :text {icons.note})
-                  (label :class "brow-label" :text {t.label} :limit-width 46 :xalign 0))))))
-        ;; floating back button OVER the scroll -- keeps the scroll viewport at y=0 (no row offset)
-        (button :class "ico sm" :halign "start" :valign "start" :onclick "~/.local/bin/album-grid back"
-          (label :class "g" :text {icons.back}))))))
+    ;; albums view -- one page of cover tiles (paginated, no scroll)
+    (box :visible {gridview == "albums"} :vexpand true :hexpand true :orientation "v" :space-evenly false :valign "start"
+      (for row in grid
+        (box :class "grid-row" :orientation "h" :space-evenly false :halign "center"
+          (for it in row
+            (button :class "tile" :onclick "~/.local/bin/album-grid album '${it.aa}' '${it.album}'"
+              (box :orientation "v" :space-evenly false :halign "center"
+                (overlay
+                  (box :class "tile-ph" :halign "center" :valign "center" :style "background-color: ${cover.accent};"
+                    (label :class "tile-ph-g g" :text {icons.note}))
+                  (image :class "tile-art" :visible {it.art != ""} :path {it.art} :image-width 210 :image-height 210))
+                (label :class "tile-name"   :text {it.album} :limit-width 20 :xalign 0.5)
+                (label :class "tile-artist" :text {it.aa}    :limit-width 24 :xalign 0.5)))))))
+    ;; album view -- play-all + one page of tracks (paginated, no scroll)
+    (box :visible {gridview == "album"} :vexpand true :hexpand true :orientation "v" :space-evenly false :valign "start"
+      (button :class "brow-row play-all" :onclick "~/.local/bin/album-grid playalbum '${gridaa}' '${gridtitle}'"
+        (box :orientation "h" :space-evenly false :valign "center"
+          (label :class "brow-ico g" :text {icons.play})
+          (label :class "brow-label" :text "Play album" :xalign 0)))
+      (for t in gridtracks
+        (button :class "brow-row" :onclick "~/.local/bin/album-grid playtrack '${t.file}'"
+          (box :orientation "h" :space-evenly false :valign "center"
+            (label :class "brow-ico g" :text {icons.note})
+            (label :class "brow-label" :text {t.label} :limit-width 46 :xalign 0)))))
+    ;; pager -- prev / page X of Y / next; shown only when there is more than one page
+    (box :class "pager" :orientation "h" :space-evenly false :halign "center" :valign "end" :visible {(gridview == "album" ? track_pages : grid_pages) > 1}
+      (button :class "ico sm" :onclick {gridview == "album" ? "~/.local/bin/album-grid trackpage prev" : "~/.local/bin/album-grid gridpage prev"}
+        (label :class "g" :text {icons.prev}))
+      (label :class "pager-lbl" :text {gridview == "album" ? (track_page + 1) + " / " + track_pages : (grid_page + 1) + " / " + grid_pages})
+      (button :class "ico sm" :onclick {gridview == "album" ? "~/.local/bin/album-grid trackpage next" : "~/.local/bin/album-grid gridpage next"}
+        (label :class "g" :text {icons.next})))))
 
 ;; ---- bluetooth pairing/connection panel (full-screen overlay) ----
 (defwidget bt-panel []
   (box :class "bt-root" :orientation "v" :space-evenly false :visible bting :vexpand true :hexpand true :style "background-color: ${cover.bg};"
     (overlay
-      (scroll :vscroll true :vexpand true :hexpand true
-        (box :class "bt-list bt-scrollpad" :orientation "v" :space-evenly false
-          (for d in bt
+      (box :class "bt-list bt-scrollpad" :orientation "v" :space-evenly false :vexpand true :hexpand true
+        (for d in bt
             (button :class {d.connected ? "brow-row bt-on" : "brow-row"} :onclick {bt_armed ? "~/.local/bin/bt-ctl toggle '${d.mac}'" : ""}
               (box :orientation "h" :space-evenly false :valign "center"
                 (label :class "brow-ico g" :text {icons.bt})
                 (box :orientation "v" :space-evenly false :hexpand true
                   (label :class "brow-label" :text {d.name} :limit-width 30 :xalign 0)
                   (label :class "bt-mac" :text {d.mac} :xalign 0))
-                (label :class "bt-state g" :text {d.connected ? icons.check : (d.paired ? icons.link : "")}))))))
-      ;; floating header over the scroll -- keeps the device list starting at the top edge (no row offset)
+                (label :class "bt-state g" :text {d.connected ? icons.check : (d.paired ? icons.link : "")})))))
+      ;; floating header (no scroll here -- the device list is short) -- keeps the device list starting at the top edge (no row offset)
       (box :class "bt-head" :halign "fill" :valign "start" :orientation "v" :space-evenly false :style "background-color: ${cover.bg};"
         (box :class "grid-bar" :orientation "h" :space-evenly false :valign "center"
           (button :class "ico sm" :onclick "~/.local/bin/bt-ctl close" (label :class "g" :text {icons.close}))
@@ -149,21 +155,37 @@
 (defwidget musiccard-w []
   (overlay
     ;; ---- base: landscape two columns — cover fills the left, now-playing the right ----
-    (box :class "card-root" :orientation "h" :space-evenly true :valign "fill" :halign "fill" :vexpand true :hexpand true :style "background-color: ${cover.bg};"
-      (box :class "mc-art" :halign "center" :valign "center" :hexpand true
-        ;; cover-wrap carries the breathing glow: box-shadow scales with `level`
-        (box :class "cover-wrap" :halign "center" :valign "center"
-             :style "box-shadow: 0 0 ${round(18 + level * 0.42, 0)}px ${round(1 + level * 0.12, 0)}px ${cover.glow};"
+    (box :class "card-root deck-tex" :orientation "h" :space-evenly false :valign "fill" :halign "fill" :vexpand true :hexpand true :style "background-color: ${cover.bg};"
+      (box :class "mc-art" :halign "center" :valign "center"
+        ;; cover-wrap: borders-on-borders frame + fixed 3-color CLASH offset shadow (no blur).
+        ;; `.paused` flips the frame to red when stopped.
+        (box :class {state == "playing" ? "cover-wrap" : "cover-wrap paused"} :halign "center" :valign "center"
+             :style "box-shadow: 6px 6px 0 #111111, 14px 14px 0 #FF4D00, 22px 22px 0 #2962FF;"
           (eventbox :onclick "~/.local/bin/music-ctl immersive"
-            (image :class "cover" :path {cover.art} :image-width 480 :image-height 480))))
-      (box :class "mc-info" :orientation "v" :space-evenly false :valign "center" :halign "center" :hexpand true
-        (label :class "np-title"  :text {np_title != "" ? np_title : "—"} :limit-width 30 :xalign 0.5 :style "color: ${cover.text};")
-        (label :class "np-artist" :text {np_artist} :limit-width 36 :xalign 0.5 :style "color: ${cover.accent};")
-        (box :class "controls" :orientation "h" :space-evenly false :halign "center"
+            (image :class "cover" :path {cover.art} :image-width 460 :image-height 460))))
+      (box :class "mc-info" :orientation "v" :space-evenly false :valign "center" :halign "fill" :hexpand true
+        (label :class "badge ink" :text "NOW PLAYING" :limit-width 14 :halign "start")
+        ;; giant ghost track numeral (album-bright), title kisses it via negative margin
+        (label :class "track-no" :text {np_track != "" ? np_track : "0"} :xalign 0 :halign "start" :style "color: ${cover.glow};")
+        (label :class "np-title"  :text {np_title != "" ? np_title : "--"} :limit-width 16 :xalign 0 :halign "start" :style "color: ${cover.text};")
+        (label :class "np-artist" :text {np_artist} :limit-width 40 :xalign 0 :halign "fill" :hexpand true :style "color: ${cover.glow};")
+        ;; stepped VU meter (rehomes `level`): lit count = round(level/8.4); zoned glow/amber/red
+        (box :class "vu" :orientation "h" :space-evenly false :halign "start"
+          (for i in vu_segs
+            (box :class "vu-seg"
+                 :style {i < round(level / 8.4, 0)
+                          ? (i >= 10 ? "background-color: #D6005A;"
+                             : (i >= 7 ? "background-color: #E0AF68;"
+                                : "background-color: ${cover.glow};"))
+                          : "background-color: #f2f2f2;"})))
+        (box :class "controls" :orientation "h" :space-evenly false :halign "start"
           (button :class "ico"     :onclick "~/.local/bin/music-ctl prev"   (label :class "g" :text {icons.prev}))
-          (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {state == "playing" ? icons.pause : icons.play}))
+          (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle"
+                  :style {state == "playing" ? "background-color: #00E676;" : "background-color: #111111;"}
+            (label :class "g" :text {state == "playing" ? icons.pause : icons.play}
+                   :style {state == "playing" ? "color: #111111;" : "color: #f2f2f2;"}))
           (button :class "ico"     :onclick "~/.local/bin/music-ctl next"   (label :class "g" :text {icons.next})))
-        (box :class "controls" :orientation "h" :space-evenly false :halign "center"
+        (box :class "controls" :orientation "h" :space-evenly false :halign "start"
           (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleall"    (label :class "g" :text {icons.shuffle}))
           (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleartist" (label :class "g" :text {icons.artist}))
           (button :class "ico fav" :onclick "~/.local/bin/music-ctl favorite"      (label :class "g" :text {icons.heart}))
@@ -171,7 +193,9 @@
           (label  :class "vol" :text "${vol}%")
           (button :class "ico"     :onclick "~/.local/bin/music-ctl volup"         (label :class "g" :text {icons.volup}))
           (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute})))
-        (label :class "nextup" :text {nextup != "" ? ("UP NEXT  ·  " + nextup) : ""} :limit-width 44 :xalign 0.5)))
+        (box :class "upnext-row" :orientation "h" :space-evenly false :halign "start" :valign "center"
+          (label :class "badge ink" :text "UP NEXT" :limit-width 10 :halign "start")
+          (label :class "nextup" :text {nextup} :limit-width 34 :xalign 0 :style "color: ${cover.text};"))))
     ;; ---- overlay: album-grid + bluetooth + refresh pinned to the top-right corner ----
     (box :class "corner" :halign "end" :valign "start" :orientation "h" :space-evenly false
       (button :class "ico sm" :onclick "~/.local/bin/album-grid open" (label :class "g" :text {icons.grid}))

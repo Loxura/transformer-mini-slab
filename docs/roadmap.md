@@ -21,9 +21,9 @@ Phased so each stage produces something usable. Don't wipe Windows until Phase 0
 - [ ] Power tuning (`tlp`, `powertop --auto-tune`) — though it's mains-powered
 
 ## Phase 3 — base rice
-- [ ] Lightweight WM (sway/labwc) or cage kiosk
+- [ ] Lightweight WM (sway) or cage kiosk
 - [ ] Port terminal dotfiles (kitty/fish/zellij)
-- [ ] Apply the e-ink palette everywhere
+- [ ] Apply the neo-brutalist palette everywhere
 
 ## Phase 4 — music stack
 - [ ] mpd + library on microSD
@@ -31,13 +31,13 @@ Phased so each stage produces something usable. Don't wipe Windows until Phase 0
 - [ ] cava reading PipeWire monitor
 
 ## Phase 5 — the look
-- [ ] e-ink theming across all apps (`themes/kitty-eink.conf` etc.)
-- [ ] No-motion pass (disable animations)
-- [ ] Monochrome cava heartbeat (`themes/cava.conf`)
+- [ ] Neo-brutalist theming across all apps (hard borders, flat blocks, big type)
+- [ ] Mechanical-motion pass (instant state flips, no easing-heavy fades)
+- [ ] Cava as a blocky VU readout / hard pulsing border (not a soft glow)
 
-## Phase 6 — the heartbeat polish
+## Phase 6 — polish
 - [ ] PipeWire EQ (EasyEffects or filter-chain)
-- [ ] Album-art palette tint on track change
+- [ ] Album-art palette feeding bold color blocks on track change
 - [ ] Now-playing kiosk view
 
 ## Stretch
