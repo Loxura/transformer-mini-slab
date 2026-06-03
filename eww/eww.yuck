@@ -1,6 +1,6 @@
 ;; transformer-mini-slab — single full-screen "deck" surface.
 ;; ONE layer-shell window, always mapped, content follows the focused sway workspace:
-;;   1:Dash  -> dash    2:Music -> music card    3:Video -> empty (mpv shows on top)
+;;   1:Dash  -> dash    2:Music -> music card    3:Cooking -> cook mode (Tandoor)
 ;; This replaces the old per-window watcher gating (two bg windows fought for the
 ;; surface and the covered one stopped repainting -> "never updates").
 
@@ -78,7 +78,7 @@
     (box :class "mode-rail" :orientation "v" :space-evenly false :valign "center"
       (button :class {ws == "1:Dash"  ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 1" (label :text "DASH"))
       (button :class {ws == "2:Music" ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 2" (label :text "MUSIC"))
-      (button :class {ws == "3:Video" ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 3" (label :text "VIDEO")))))
+      (button :class {ws == "3:Cooking" ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 3" (label :text "COOK")))))
 
 (defwidget dash-w []
   (box :class "dash" :orientation "v" :space-evenly false :vexpand true :hexpand true
@@ -271,14 +271,100 @@
     ;; ---- overlay: full-screen immersive cover (toggled by `immersive`) ----
     (immersive-w)))
 
+;; ============================ Cook mode (ws3) ============================
+;; Two states (driven by ~/.local/bin/cook): a PICKER grid when nothing's planned for today,
+;; and the step-by-step COOK view once a meal is chosen (and remembered as today's meal plan).
+;; Data from self-hosted Tandoor. PAGINATED, no scroll.
+(defvar cook_loaded     false)
+(defvar cook_view       "pick")   ;; "pick" | "cook"
+(defvar cook_title      "")
+(defvar cook_sub        "")
+(defvar cook_role       "")        ;; BATCH | QUICK | ""
+(defvar cook_ings       "[]")      ;; rows of {i,text,checked}
+(defvar cook_step_text  "")
+(defvar cook_step       0)
+(defvar cook_nsteps     1)
+(defvar cook_ning       0)         ;; ingredient count (0 -> show "no list captured")
+(defvar cook_picks      "[]")      ;; rows of {id,name,role,img}
+(defvar cook_pick_page  0)
+(defvar cook_pick_pages 1)
+
+(defwidget cook-empty []
+  (box :class "cook cook-empty" :orientation "v" :space-evenly false :valign "center" :halign "center" :vexpand true :hexpand true
+    (label :class "cook-empty-h" :text "KITCHEN OFFLINE")
+    (label :class "cook-empty-sub" :text "cannot reach the recipe service")
+    (button :class "cook-load-big" :onclick "~/.local/bin/cook load" (label :text "RETRY"))))
+
+;; ---- PICKER: pick tonight's meal (photo tiles; tap remembers it as today's plan) ----
+(defwidget cook-picker []
+  (box :class "cook deck-tex" :orientation "v" :space-evenly false :vexpand true :hexpand true
+    (box :class "cook-head" :orientation "h" :space-evenly false :valign "start"
+      (label :class "cook-title" :text "WHAT'S FOR DINNER?" :xalign 0 :hexpand true)
+      (button :class "ico sm" :onclick "~/.local/bin/cook load" (label :class "g" :text {icons.refresh})))
+    (box :class "pick-grid" :orientation "v" :space-evenly false :vexpand true :valign "start"
+      (for row in cook_picks
+        (box :class "pick-row" :orientation "h" :space-evenly true :halign "fill"
+          (for it in row
+            (button :class "pick-tile" :hexpand true :onclick "~/.local/bin/cook pick ${it.id} '${it.name}'"
+              (box :orientation "v" :space-evenly false :halign "center"
+                (overlay
+                  (box :class {it.role == "QUICK" ? "pick-ph quick" : "pick-ph batch"} :halign "center" :valign "center"
+                    (label :class "pick-ph-g g" :text {icons.note}))
+                  (image :class "pick-art" :visible {it.img != ""} :path {it.img} :image-width 252 :image-height 150))
+                (label :class "pick-name" :text {it.name} :limit-width 24 :xalign 0.5 :wrap true :show-truncated false :lines 2)
+                (label :class {it.role == "QUICK" ? "badge pick-role quick" : "badge pick-role batch"} :text {it.role} :visible {it.role != ""})))))))
+    (box :class "pager" :orientation "h" :space-evenly false :halign "center" :valign "end" :visible {cook_pick_pages > 1}
+      (button :class "ico sm" :onclick "~/.local/bin/cook pickpage prev" (label :class "g" :text {icons.prev}))
+      (label :class "pager-lbl" :text "${cook_pick_page + 1} / ${cook_pick_pages}")
+      (button :class "ico sm" :onclick "~/.local/bin/cook pickpage next" (label :class "g" :text {icons.next})))))
+
+;; ---- COOK view: the chosen recipe, step by step (CHANGE goes back to the picker) ----
+(defwidget cook-recipe []
+  (box :class "cook deck-tex" :orientation "v" :space-evenly false :vexpand true :hexpand true
+    (box :class "cook-head" :orientation "h" :space-evenly false :valign "start"
+      (box :orientation "v" :space-evenly false :hexpand true
+        (label :class "cook-title" :text cook_title :limit-width 24 :xalign 0)
+        (box :class "cook-meta" :orientation "h" :space-evenly false :halign "fill" :valign "center"
+          (label :class {cook_role == "QUICK" ? "badge cook-role quick" : "badge cook-role batch"} :text cook_role :visible {cook_role != ""})
+          (label :class "cook-sub" :text cook_sub :xalign 0 :halign "fill" :hexpand true)))
+      (button :class "cook-change" :onclick "~/.local/bin/cook change" (label :text "CHANGE"))
+      (button :class "ico sm" :onclick "~/.local/bin/cook load" (label :class "g" :text {icons.refresh})))
+    (box :class "cook-body" :orientation "h" :space-evenly false :vexpand true
+      (box :class "cook-ings" :orientation "v" :space-evenly false
+        (label :class "cook-col-h" :text "INGREDIENTS" :xalign 0)
+        (label :class "cook-noings" :text "no ingredient list captured" :xalign 0 :visible {cook_ning == 0})
+        (box :orientation "v" :space-evenly false :vexpand true
+          (for row in cook_ings
+            (box :class "ing-grid-row" :orientation "h" :space-evenly true :halign "fill"
+              (for ing in row
+                (button :class {ing.checked ? "ing-row done" : "ing-row"} :hexpand true :onclick "~/.local/bin/cook check ${ing.i}"
+                  (box :orientation "h" :space-evenly false :valign "center"
+                    (label :class {ing.checked ? "ing-box on g" : "ing-box g"} :text {ing.checked ? icons.check : ""})
+                    (label :class "ing-text" :text {ing.text} :limit-width 18 :xalign 0))))))))
+      (box :class "cook-step" :orientation "v" :space-evenly false :hexpand true
+        (label :class "cook-step-n" :text "STEP ${cook_step + 1} / ${cook_nsteps}" :xalign 0 :halign "start")
+        (box :class "cook-step-card" :vexpand true :hexpand true
+          (label :class "cook-step-text" :text cook_step_text :wrap true :show-truncated false :xalign 0 :valign "start" :hexpand true :halign "fill"))
+        (box :class "pager cook-pager" :orientation "h" :space-evenly false :halign "fill" :valign "end"
+          (button :class "ico big" :onclick "~/.local/bin/cook step prev" (label :class "g" :text {icons.prev}))
+          (box :hexpand true)
+          (button :class {cook_step + 1 >= cook_nsteps ? "cook-next done" : "cook-next"} :onclick "~/.local/bin/cook step next"
+            (label :text {cook_step + 1 >= cook_nsteps ? "DONE" : "NEXT STEP"})))))))
+
+(defwidget cookmode-w []
+  (box :orientation "v" :space-evenly false :vexpand true :hexpand true
+    (box :visible {!cook_loaded} :vexpand true :hexpand true (cook-empty))
+    (box :visible {cook_loaded && cook_view == "pick"} :vexpand true :hexpand true (cook-picker))
+    (box :visible {cook_loaded && cook_view == "cook"} :vexpand true :hexpand true (cook-recipe))))
+
 ;; ============================ Deck root ============================
 ;; Stack the modes; only the focused workspace's widget is visible (hidden widgets
-;; are not allocated, so the visible one fills the screen). On 3:Video both are
-;; hidden and mpv (a normal window) draws above this bg layer.
+;; are not allocated, so the visible one fills the screen).
 (defwidget deck-root []
   (box :orientation "v" :space-evenly false :vexpand true :hexpand true
-    (box :visible {ws == "1:Dash"}  :vexpand true :hexpand true (dash-w))
-    (box :visible {ws == "2:Music"} :vexpand true :hexpand true (musiccard-w))))
+    (box :visible {ws == "1:Dash"}    :vexpand true :hexpand true (dash-w))
+    (box :visible {ws == "2:Music"}   :vexpand true :hexpand true (musiccard-w))
+    (box :visible {ws == "3:Cooking"} :vexpand true :hexpand true (cookmode-w))))
 
 (defwindow deck
   :monitor 0

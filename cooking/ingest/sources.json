@@ -1,0 +1,17 @@
+{
+  "_comment": "Approved seed sources for the cooking conveyor (see docs/proposals/2026-06-03-cooking-tab-plan.md). type: feed|sitemap. bucket_default is the fallback role only when a recipe has no time data; real working+waiting time overrides it (quick if total<=30min).",
+  "_dropped": "Damn Delicious (Cloudflare-403s even a browser UA) and Indian Healthy Recipes (JS bot-challenge wall on /feed/ AND pages) proved unscrapable politely during the 2026-06-03 seed. Damn Delicious -> replaced by Bowl of Delicious (quick). Indian Healthy Recipes removed, leaving a South-Asian cuisine gap to fill from a future scrapable source.",
+  "sources": [
+    { "name": "Fit Men Cook",          "type": "sitemap", "url": "https://fitmencook.com/recipes-sitemap.xml", "bucket_default": "batch" },
+    { "name": "Meal Prep Manual",      "type": "feed",    "url": "https://mealprepmanual.com/feed/",            "bucket_default": "batch" },
+    { "name": "Skinnytaste",           "type": "feed",    "url": "https://www.skinnytaste.com/feed/",           "bucket_default": "batch" },
+    { "name": "The Protein Chef",      "type": "feed",    "url": "https://theproteinchef.co/feed/",             "bucket_default": "batch" },
+    { "name": "Budget Bytes",          "type": "feed",    "url": "https://www.budgetbytes.com/feed/",           "bucket_default": null },
+    { "name": "RecipeTin Eats",        "type": "feed",    "url": "https://www.recipetineats.com/feed/",         "bucket_default": null },
+    { "name": "Bowl of Delicious",     "type": "feed",    "url": "https://www.bowlofdelicious.com/feed/",       "bucket_default": "quick" },
+    { "name": "The Woks of Life",      "type": "feed",    "url": "https://thewoksoflife.com/feed/",             "bucket_default": null },
+    { "name": "Just One Cookbook",     "type": "feed",    "url": "https://www.justonecookbook.com/feed/",       "bucket_default": null },
+    { "name": "The Mediterranean Dish","type": "feed",    "url": "https://www.themediterraneandish.com/feed/",  "bucket_default": "quick" },
+    { "name": "Mexican Please",        "type": "feed",    "url": "https://www.mexicanplease.com/feed/",          "bucket_default": null }
+  ]
+}

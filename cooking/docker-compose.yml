@@ -1,0 +1,40 @@
+# transformer-mini-slab — cooking backend (Tandoor Recipes).
+# The "cooking conveyor": a recipe-ingest watcher (separate) feeds recipes in via Tandoor's API;
+# the deck's Cooking tab (ws3) reads the meal plan + recipe steps over the LAN.
+#
+# Deliberately its OWN stack, isolated from server/docker-compose.yml — it must NOT share gluetun's
+# VPN network namespace (that's only for torrent/Soulseek traffic). Plain LAN HTTP is correct here.
+#
+# Two containers only (Tandoor 2.x bundles nginx in the web image; no separate proxy / redis needed).
+# Secrets live in cooking/.env (gitignored). Copy .env.example -> .env and fill it in.
+services:
+  db_recipes:
+    image: postgres:16-alpine
+    container_name: tandoor_db
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    volumes:
+      # NAMED volume, not a ./ bind mount. The repo lives on /mnt/c (DrvFs); Postgres initdb
+      # must chmod its data dir and DrvFs forbids it -> initdb fails. Named volumes live on the
+      # Linux VM's ext4 where permissions work. Back up via: docker compose exec db_recipes pg_dump.
+      - pgdata:/var/lib/postgresql/data
+
+  web_recipes:
+    image: vabene1111/recipes:latest
+    container_name: tandoor
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    ports:
+      - "8090:80"               # deck + phone hit http://<mainframe>:8090 over the LAN
+    volumes:
+      - staticfiles:/opt/recipes/staticfiles
+      - mediafiles:/opt/recipes/mediafiles    # recipe images/uploads (named volume, same DrvFs reason)
+    depends_on:
+      - db_recipes
+
+volumes:
+  pgdata:
+  mediafiles:
+  staticfiles:

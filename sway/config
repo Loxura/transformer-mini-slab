@@ -1,5 +1,5 @@
 ### transformer-mini-slab — sway "swipe deck"
-### Modes = workspaces: 1 Dash · 2 Now Playing · 3 Video
+### Modes = workspaces: 1 Dash · 2 Now Playing · 3 Cooking
 ### Hardware: output DSI-1 (portrait panel), touch ELAN22A6
 
 set $mod Mod4
@@ -23,13 +23,13 @@ font pango:JetBrains Mono 11
 ### WORKSPACES = modes #######################################################
 set $ws1 "1:Dash"
 set $ws2 "2:Music"
-set $ws3 "3:Video"
+set $ws3 "3:Cooking"
 
 ### AUTOSTART — one eww "deck" surface; its content follows the focused workspace ####
 # exec waybar   # hidden — the eww Dash top bar replaces it
 exec /home/minideck/.local/bin/deck-launch  # single full-screen eww window (Dash + Music card)
 exec /home/minideck/.local/bin/audio-route-fix  # re-route audio to the speaker after boot (WirePlumber UCM quirk)
-assign [app_id="mpv"] $ws3        # Video: mpv lands here on demand
+exec /home/minideck/.local/bin/cook load        # Cooking: pull tonight's recipe from Tandoor on boot
 workspace $ws1
 
 ### TOUCH SWIPE between modes (lisgd) ########################################

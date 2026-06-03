@@ -228,6 +228,73 @@ $c-red:    #D6005A;
 .pager .ico  { margin: 0 22px; }
 .pager-lbl   { color: $paper; font-size: 17px; }
 
+/* ===== Cook mode (ws3) -- tonight's recipe, step-by-step from Tandoor =====
+   Dark base (matches Dash), paper-bordered columns w/ clash offset shadows, sticker
+   headers. Left = ingredient checklist (tap to tick), right = one big step + pager. */
+.cook        { background-color: #161616; color: $paper; padding: 34px 40px 28px 40px; }
+.cook-head   { margin-bottom: 22px; padding-bottom: 16px; border-bottom: 3px solid $paper; }
+.cook-title  { font-size: 40px; font-weight: 800; letter-spacing: -2px; color: $paper; }
+.cook-meta   { margin-top: 10px; }
+.cook-role   { font-size: 13px; padding: 4px 10px; margin-right: 14px; }
+.cook-role.batch { @include sticker($c-blue, $paper); }
+.cook-role.quick { @include sticker($c-lime, $ink); }
+.cook-sub    { font-size: 15px; font-weight: bold; letter-spacing: 2px; color: #b9b9b9; }
+
+.cook-body   { }
+/* LEFT: ingredient checklist -- stamped square checkbox + label, tap toggles */
+.cook-ings   { min-width: 600px; margin-right: 28px; }
+.cook-col-h  { @include sticker($paper, $ink); margin-bottom: 12px; }
+.ing-grid-row { }   /* 2-column grid row; columns hexpand-evenly so the list never overflows the screen */
+.ing-row     { border: 2px solid rgba(242,242,242,0.4); border-radius: 0; background-color: transparent;
+               padding: 8px 11px; margin: 4px 5px; }
+.ing-row:active { background-color: rgba(242,242,242,0.1); }
+.ing-row.done   { border-color: rgba(242,242,242,0.16); }
+.ing-box     { font-family: "FontAwesome"; font-size: 12px; color: $ink;
+               min-width: 24px; min-height: 24px; margin-right: 12px;
+               border: 2px solid $paper; border-radius: 0; background-color: transparent; }
+.ing-box.on  { background-color: $c-lime; border-color: $c-lime; }   /* ticked = lime block */
+.ing-text    { font-size: 16px; color: $paper; }
+.cook-noings { color: #8a8a8a; font-size: 16px; margin: 12px 4px; }
+.ing-row.done .ing-text { color: #6f6f6f; }
+
+/* RIGHT: the step viewer -- the killer cook surface. Big number, big instruction, pager */
+.cook-step      { }
+.cook-step-n    { @include sticker($c-orange, $ink); font-size: 16px; margin-bottom: 14px; }
+.cook-step-card { @include cell; background-color: #1c1c1c; border-color: $paper;
+                  box-shadow: 8px 8px 0 $c-orange; padding: 30px 34px; }
+.cook-step-text { font-size: 26px; font-weight: bold; color: $paper; }
+.cook-pager     { padding: 18px 0 4px 0; }
+.cook-next      { @include sticker($c-lime, $ink); font-size: 22px; font-weight: 800;
+                  padding: 14px 30px; box-shadow: 5px 5px 0 $ink; }
+.cook-next:active { box-shadow: 0 0 0 $ink; }
+.cook-next.done { background-color: $c-pink; color: $paper; }
+
+/* empty state */
+.cook-empty     { }
+.cook-empty-h   { font-size: 38px; font-weight: 800; letter-spacing: -1px; color: $paper; }
+.cook-empty-sub { font-size: 16px; letter-spacing: 2px; color: #8a8a8a; margin-top: 10px; margin-bottom: 26px; }
+.cook-load-big  { @include sticker($c-lime, $ink); font-size: 24px; font-weight: 800; padding: 16px 44px; box-shadow: 6px 6px 0 $ink; }
+.cook-load-big:active { box-shadow: 0 0 0 $ink; }
+
+/* picker grid -- choose tonight's meal; paper-mounted photo (or color placeholder) tiles */
+.pick-row     { margin: 4px 0; }
+.pick-tile    { padding: 10px; margin: 8px; border-radius: 0; background-color: #1c1c1c;
+                border: 3px solid $paper; box-shadow: 6px 6px 0 $c-blue; }
+.pick-tile:active { box-shadow: 0 0 0 $ink; }
+.pick-art     { border-radius: 0; border: 3px solid $ink; }
+.pick-ph      { min-width: 252px; min-height: 150px; border-radius: 0; border: 3px solid $ink; }
+.pick-ph.batch { background-color: $c-blue; }
+.pick-ph.quick { background-color: $c-lime; }
+.pick-ph-g    { font-size: 40px; color: rgba(0,0,0,0.35); }
+.pick-name    { color: $paper; font-size: 16px; font-weight: bold; margin-top: 10px; }
+.pick-role    { font-size: 11px; padding: 2px 8px; margin-top: 8px; }
+.pick-role.batch { @include sticker($c-blue, $paper); }
+.pick-role.quick { @include sticker($c-lime, $ink); }
+
+/* CHANGE button (cook view header) -- back to the picker */
+.cook-change  { @include sticker($paper, $ink); font-size: 14px; font-weight: bold; padding: 9px 16px; margin-right: 12px; }
+.cook-change:active { box-shadow: 0 0 0 $ink; }
+
 /* ---- full-screen immersive cover ---- */
 .immersive    { }
 .imm-info     { padding: 0 0 54px 0; background-image: linear-gradient(transparent, rgba(0,0,0,0.72)); }

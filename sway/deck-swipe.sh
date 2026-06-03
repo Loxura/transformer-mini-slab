@@ -16,6 +16,6 @@ esac
 case "$n" in
   1) ws="1:Dash" ;;
   2) ws="2:Music" ;;
-  3) ws="3:Video" ;;
+  3) ws="3:Cooking" ;;
 esac
 exec swaymsg workspace "$ws"

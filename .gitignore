@@ -24,3 +24,6 @@ server/library/
 # built eww binary (cross-built, not committed)
 eww/eww
 *.rlib
+
+# cooking ingest watcher runtime state (seen-set + feed etags)
+cooking/ingest/state/
