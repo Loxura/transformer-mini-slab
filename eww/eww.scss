@@ -84,9 +84,14 @@ $c-red:    #D6005A;
 }
 .topbar  { font-size: 18px; padding-bottom: 14px; border-bottom: 3px solid $paper; }
 .tb-date { font-size: 26px; font-weight: bold; color: $paper; }
-.tb-item { color: #c8c8c8; margin: 0 10px; }
-.tb-sep  { color: #6e6e6e; }
-.tb-ip   { color: #8a8a8a; margin-left: 14px; }
+/* stamped status chips (weather + vitals + wifi). .warn = hazard, ink-on-orange. */
+.chip    { border: 2px solid $paper; border-radius: 0; padding: 4px 10px; margin-left: 10px;
+           box-shadow: 3px 3px 0 rgba(255,255,255,0.18); }
+.chip.warn { background-color: $c-orange; box-shadow: 3px 3px 0 $ink; }
+.chip-g  { font-family: "FontAwesome"; font-size: 15px; color: $paper; margin-right: 7px; }
+.chip-k  { font-size: 11px; color: #9a9a9a; margin-right: 6px; }
+.chip-t  { font-size: 15px; font-weight: bold; color: $paper; }
+.chip.warn .chip-g, .chip.warn .chip-k, .chip.warn .chip-t { color: $ink; }
 .body    { margin-top: 34px; }
 /* dark cards, thick PAPER border (reads on dark), per-card CLASH offset shadow */
 .card        { background-color: #1c1c1c; border: 3px solid $paper; border-radius: 0; padding: 24px 28px; margin: 0 18px; }
@@ -98,7 +103,26 @@ $c-red:    #D6005A;
 .events-h    { @include sticker($paper, $ink); margin-top: 20px; margin-bottom: 12px; }
 .events      { font-size: 16px; color: #c8c8c8; }
 .ticker-h    { @include sticker($c-lime, $ink); margin-bottom: 16px; }
-.ticker      { font-size: 28px; font-weight: bold; color: $c-lime; }
+/* signage slab -- bg/fg colour set inline by direction (green up / red down) */
+.ticker      { font-size: 24px; font-weight: bold; color: $ink; border: 3px solid $ink;
+               box-shadow: 4px 4px 0 $ink; padding: 10px 16px; }
+
+/* ---- Dash foot: now-playing glance + transport + mode rail ---- */
+.dash-foot      { margin-top: 26px; }
+.np-strip       { border: 3px solid $paper; border-radius: 0; padding: 14px 22px;
+                  box-shadow: 6px 6px 0 $c-pink; margin-right: 26px; }
+.npb            { font-size: 12px; padding: 3px 9px; margin-right: 14px; }
+.np-strip-title { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+.np-strip-artist{ font-size: 14px; letter-spacing: 3px; margin-top: 4px; }
+.dvu            { margin-top: 12px; }
+.dvu-seg        { min-width: 15px; min-height: 10px; margin-right: 4px; border-radius: 0; }
+.foot-transport { margin-right: 26px; }
+/* tappable mode rail -- filled = active mode, outline = inactive */
+.mode-btn       { border: 3px solid $paper; border-radius: 0; background-color: transparent;
+                  color: $paper; font-size: 16px; font-weight: bold; padding: 9px 22px; margin: 4px 0;
+                  box-shadow: 4px 4px 0 rgba(255,255,255,0.22); }
+.mode-btn.on    { background-color: $paper; color: $ink; box-shadow: 4px 4px 0 $c-orange; }
+.mode-btn:active{ box-shadow: 0 0 0 $ink; }
 
 /* ===== Music card (ws2) - DECK v2: clash color + editorial type + mechanical VU ===== */
 .card-root { padding: 0; }
@@ -125,6 +149,21 @@ $c-red:    #D6005A;
 .badge       { @include sticker($paper, $ink); }
 .badge.ink   { @include sticker($ink, $paper); }
 .upnext-row  { margin-top: 18px; }
+
+/* seek bar -- 10 tap-to-seek blocks; fill colour set inline (cover.glow vs paper) */
+.seekbar     { margin: 14px 0 4px 0; }
+.seek-seg    { padding: 0; margin-right: 5px; background-color: transparent; }
+.seek-fill   { min-height: 18px; border: 2px solid $ink; border-radius: 0; }
+.seek-seg:active .seek-fill { box-shadow: inset 0 0 0 2px $ink; }
+.seek-time   { font-size: 13px; font-weight: bold; letter-spacing: 1px; margin-top: 6px; }
+
+/* play-mode toggles -- ink-fill when on, paper outline when off */
+.modes-row   { margin: 10px 0 2px 0; }
+.mode-tog    { border: $bd solid $ink; border-radius: 0; background-color: $paper; color: $ink;
+               font-size: 14px; font-weight: bold; padding: 8px 15px; margin-right: 10px;
+               box-shadow: 3px 3px 0 $ink; }
+.mode-tog.on { background-color: $c-lime; color: $ink; }   /* lime = on (matches play/bt-on/play-all) */
+.mode-tog:active { box-shadow: 0 0 0 $ink; }
 
 /* stepped VU meter -- 12 hard segments; fill count = level, color zoned. The stepping
    on each `level` push from the audio-level deflisten IS the (cheap) animation. */

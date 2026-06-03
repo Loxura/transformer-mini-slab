@@ -8,21 +8,32 @@
 
 ;; ============================ Dash (ws1) ============================
 (defpoll date     :interval "300s"  `date +"%A, %d %B"`)
-(defpoll weather  :interval "1800s" `curl -s 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null || wget -qO- 'wttr.in/Winnipeg?format=%C+%t' 2>/dev/null`)
+(defpoll wx       :interval "1800s" :initial `{"glyph":"","temp":"","cond":""}` `~/.local/bin/weather`)
+(defpoll vitals   :interval "30s"   :initial `{"bat":"--","chg":false,"temp":"--","disk":"--","sd":"--","load":"--","bat_warn":false,"temp_warn":false,"disk_warn":false,"sd_warn":false}` `~/.local/bin/sys-vitals`)
 (defpoll ssid     :interval "30s"   `iw dev wlp1s0 link 2>/dev/null | sed -n 's/.*SSID: //p'`)
 (defpoll ipaddr   :interval "30s"   `ip -4 -o addr show wlp1s0 2>/dev/null | awk '{print $4}' | head -1`)
 (defpoll clockimg :interval "20s"   `~/.local/bin/analog-clock`)
 (defpoll events   :interval "600s"  `python3 ~/.local/bin/gcal-events.py 2>/dev/null`)
 (deflisten ticker :initial "loading markets…" `~/.local/bin/stock-ticker`)
 
+;; topbar = stamped status rail: date (left) + weather/vitals/wifi chips (right).
+;; Vitals chips turn hazard-orange (text flips to ink) when over threshold.
+(defwidget chip [?cls ?glyph ?k v]
+  (box :class {cls ?: "chip"} :orientation "h" :space-evenly false :valign "center"
+    (label :class "chip-g g" :text {glyph ?: ""} :visible {(glyph ?: "") != ""})
+    (label :class "chip-k"   :text {k ?: ""}     :visible {(k ?: "") != ""})
+    (label :class "chip-t"   :text v)))
+
 (defwidget topbar []
   (box :class "topbar" :orientation "h" :space-evenly false :valign "start"
-    (label :class "tb-item tb-date" :text date)
+    (label :class "tb-date" :text date)
     (box :hexpand true)
-    (label :class "tb-item" :text {weather != "" ? weather : "—"})
-    (label :class "tb-sep"  :text "•")
-    (label :class "tb-item" :text {ssid != "" ? ssid : "WiFi"})
-    (label :class "tb-ip"   :text ipaddr)))
+    (chip :glyph {wx.glyph} :v {wx.temp != "" ? wx.temp : "--"})
+    (chip :cls {vitals.bat_warn  ? "chip warn" : "chip"} :k {vitals.chg ? "CHG" : "BAT"} :v {vitals.bat})
+    (chip :cls {vitals.temp_warn ? "chip warn" : "chip"} :k "TMP" :v {vitals.temp})
+    (chip :cls {vitals.disk_warn ? "chip warn" : "chip"} :k "DSK" :v {vitals.disk})
+    (chip :cls {vitals.sd_warn   ? "chip warn" : "chip"} :k "SD"  :v {vitals.sd})
+    (chip :k {ssid != "" ? ssid : "WiFi"} :v ipaddr)))
 
 (defwidget dash-body []
   (box :class "body" :orientation "h" :space-evenly false :vexpand true
@@ -34,12 +45,46 @@
       (label :class "events" :text {events != "" ? events : "nothing scheduled"} :wrap true :xalign 0))
     (box :class "card ticker-card" :orientation "v" :space-evenly false :valign "center" :halign "center"
       (label :class "ticker-h" :text "MARKETS" :halign "center")
-      (label :class "ticker"   :text ticker))))
+      ;; signage slab: full green block when up, full red when down (not a tint)
+      (label :class "ticker" :text ticker
+        :style {matches(ticker, "-[0-9]") ? "background-color: #D6005A; color: #111111;" : "background-color: #00E676; color: #111111;"}))))
+
+;; Dash mini-VU (rehomes `level` onto the home screen): 10 segments lit by loudness.
+(defvar dash_vu "[0,1,2,3,4,5,6,7,8,9]")
+
+;; ---- Dash foot: now-playing glance + transport + tappable mode rail ----
+;; All vars here (np_*, state, level, cover, icons) are global polls already running,
+;; so this is free at runtime -- it just rehomes the music signal onto the home screen.
+(defwidget dash-foot []
+  (box :class "dash-foot" :orientation "h" :space-evenly false :valign "end"
+    ;; palette-tinted now-playing block (wears the current record)
+    (box :class "np-strip" :orientation "v" :space-evenly false :hexpand true :valign "center" :style "background-color: ${cover.bg};"
+      (box :orientation "h" :space-evenly false :valign "center"
+        (label :class "badge ink npb" :text "NOW" :halign "start")
+        (label :class "np-strip-title" :text {np_title != "" ? np_title : "—"} :limit-width 22 :xalign 0 :style "color: ${cover.text};"))
+      (label :class "np-strip-artist" :text {np_artist} :limit-width 38 :xalign 0 :style "color: ${cover.glow};")
+      (box :class "dvu" :orientation "h" :space-evenly false :halign "start"
+        (for i in dash_vu
+          (box :class "dvu-seg" :style {i < round(level / 10, 0) ? "background-color: ${cover.glow};" : "background-color: rgba(255,255,255,0.13);"}))))
+    ;; transport -- prev / play-pause / next (same controls as the Music card)
+    (box :class "foot-transport" :orientation "h" :space-evenly false :valign "center"
+      (button :class "ico" :onclick "~/.local/bin/music-ctl prev" (label :class "g" :text {icons.prev}))
+      (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle"
+              :style {state == "playing" ? "background-color: #00E676;" : "background-color: #111111;"}
+        (label :class "g" :text {state == "playing" ? icons.pause : icons.play}
+               :style {state == "playing" ? "color: #111111;" : "color: #f2f2f2;"}))
+      (button :class "ico" :onclick "~/.local/bin/music-ctl next" (label :class "g" :text {icons.next})))
+    ;; tappable mode rail -- swipe insurance; active mode from `ws`
+    (box :class "mode-rail" :orientation "v" :space-evenly false :valign "center"
+      (button :class {ws == "1:Dash"  ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 1" (label :text "DASH"))
+      (button :class {ws == "2:Music" ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 2" (label :text "MUSIC"))
+      (button :class {ws == "3:Video" ? "mode-btn on" : "mode-btn"} :onclick "~/.local/bin/deck-mode 3" (label :text "VIDEO")))))
 
 (defwidget dash-w []
   (box :class "dash" :orientation "v" :space-evenly false :vexpand true :hexpand true
     (topbar)
-    (dash-body)))
+    (dash-body)
+    (dash-foot)))
 
 ;; ============================ Music card (ws2) ============================
 (defpoll np_title  :interval "1s"   `mpc -f '%title%'  current 2>/dev/null`)
@@ -49,6 +94,8 @@
 (defpoll vol       :interval "2s"   `wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}'`)
 (defpoll nextup    :interval "1s"   `pos=$(mpc -f %position% current 2>/dev/null); [ -n "$pos" ] && mpc -f '%artist% - %title%' playlist 2>/dev/null | sed -n "$((pos+1))p"`)
 (defpoll cover     :interval "3s"   `~/.local/bin/cover-palette`)
+(defpoll progress  :interval "1s"   :initial `{"pct":0,"elapsed":"0:00","total":"0:00"}` `~/.local/bin/np-progress`)
+(defpoll modes     :interval "1s"   :initial `{"repeat":false,"single":false,"consume":false,"random":false}` `~/.local/bin/mpc-modes`)
 (defpoll icons     :interval "999999s" `~/.local/bin/fa-icons`)
 (deflisten level   :initial "0"      `~/.local/bin/audio-level`)   ;; 0-100 loudness for the breathing cover glow
 
@@ -57,6 +104,8 @@
 
 ;; VU meter segment indices (12 hard segments; fill driven by `level`)
 (defvar vu_segs "[0,1,2,3,4,5,6,7,8,9,10,11]")
+;; seek-bar segment indices (10 tap-to-seek blocks; each seeks to i*10%)
+(defvar seek_segs "[0,1,2,3,4,5,6,7,8,9]")
 
 ;; album-cover grid browser state (driven imperatively by ~/.local/bin/album-grid)
 (defvar gridding   false)
@@ -169,6 +218,15 @@
         (label :class "track-no" :text {np_track != "" ? np_track : "0"} :xalign 0 :halign "start" :style "color: ${cover.glow};")
         (label :class "np-title"  :text {np_title != "" ? np_title : "--"} :limit-width 16 :xalign 0 :halign "start" :style "color: ${cover.text};")
         (label :class "np-artist" :text {np_artist} :limit-width 40 :xalign 0 :halign "fill" :hexpand true :style "color: ${cover.glow};")
+        ;; seek bar -- 10 tap-to-seek blocks (lit = progress); elapsed / total underneath
+        (box :class "seekbar" :orientation "v" :space-evenly false :halign "fill" :hexpand true
+          (box :orientation "h" :space-evenly false :halign "fill" :hexpand true
+            (for i in seek_segs
+              (button :class "seek-seg" :hexpand true :onclick "~/.local/bin/music-ctl seek ${i * 10}"
+                (box :class "seek-fill" :hexpand true
+                     :style {i < round(progress.pct / 10, 0) ? "background-color: ${cover.glow};" : "background-color: #f2f2f2;"}))))
+          (label :class "seek-time" :halign "fill" :xalign 0.5 :limit-width 20
+                 :text "${progress.elapsed} / ${progress.total}" :style "color: ${cover.text};"))
         ;; stepped VU meter (rehomes `level`): lit count = round(level/8.4); zoned glow/amber/red
         (box :class "vu" :orientation "h" :space-evenly false :halign "start"
           (for i in vu_segs
@@ -193,6 +251,11 @@
           (label  :class "vol" :text "${vol}%")
           (button :class "ico"     :onclick "~/.local/bin/music-ctl volup"         (label :class "g" :text {icons.volup}))
           (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute})))
+        ;; play-mode toggles -- filled (ink) when on, outline when off (text dodges missing FA glyphs)
+        (box :class "modes-row" :orientation "h" :space-evenly false :halign "start"
+          (button :class {modes.repeat  ? "mode-tog on" : "mode-tog"} :onclick "~/.local/bin/music-ctl repeat"  (label :text "REPEAT"))
+          (button :class {modes.single  ? "mode-tog on" : "mode-tog"} :onclick "~/.local/bin/music-ctl single"  (label :text "1"))
+          (button :class {modes.consume ? "mode-tog on" : "mode-tog"} :onclick "~/.local/bin/music-ctl consume" (label :text "CONSUME")))
         (box :class "upnext-row" :orientation "h" :space-evenly false :halign "start" :valign "center"
           (label :class "badge ink" :text "UP NEXT" :limit-width 10 :halign "start")
           (label :class "nextup" :text {nextup} :limit-width 34 :xalign 0 :style "color: ${cover.text};"))))

@@ -18,6 +18,14 @@ case "${1:-}" in
   next)   mpc -q next ;;
   prev)   mpc -q prev ;;
 
+  # discrete tap-to-seek: arg is a 0-100 percent of the track (no drag-scrub needed)
+  seek)   mpc -q seek "${2:-0}%" ;;
+
+  # play-mode flags (each `mpc <flag>` with no arg toggles it)
+  repeat)  mpc -q repeat ;;
+  single)  mpc -q single ;;
+  consume) mpc -q consume ;;
+
   # one-tap play a whole album (arg = album dir relative to the music library)
   playalbum) shift; mpc -q clear; mpc -q add "$1"; mpc -q play ;;
 
