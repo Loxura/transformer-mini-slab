@@ -291,6 +291,16 @@ $c-red:    #D6005A;
 .pick-role.batch { @include sticker($c-blue, $paper); }
 .pick-role.quick { @include sticker($c-lime, $ink); }
 
+/* mood filter ("choose your mood") -- quick / batch / all; active = role-colored fill */
+.mood-bar    { margin-right: 14px; }
+.mood-tab    { border: 3px solid $paper; border-radius: 0; background-color: transparent; color: $paper;
+               font-size: 15px; font-weight: bold; padding: 9px 18px; margin-left: 8px;
+               box-shadow: 3px 3px 0 rgba(255,255,255,0.22); }
+.mood-tab:active { box-shadow: 0 0 0 $ink; }
+.mood-tab.on.quick { background-color: $c-lime; color: $ink;   box-shadow: 3px 3px 0 $ink; }
+.mood-tab.on.batch { background-color: $c-blue; color: $paper; box-shadow: 3px 3px 0 $ink; }
+.mood-tab.on.all   { background-color: $paper;  color: $ink;   box-shadow: 3px 3px 0 $c-orange; }
+
 /* CHANGE button (cook view header) -- back to the picker */
 .cook-change  { @include sticker($paper, $ink); font-size: 14px; font-weight: bold; padding: 9px 16px; margin-right: 12px; }
 .cook-change:active { box-shadow: 0 0 0 $ink; }

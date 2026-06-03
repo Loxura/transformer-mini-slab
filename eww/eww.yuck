@@ -288,6 +288,7 @@
 (defvar cook_picks      "[]")      ;; rows of {id,name,role,img}
 (defvar cook_pick_page  0)
 (defvar cook_pick_pages 1)
+(defvar cook_mood       "all")     ;; all | quick | batch -- picker filter ("choose your mood")
 
 (defwidget cook-empty []
   (box :class "cook cook-empty" :orientation "v" :space-evenly false :valign "center" :halign "center" :vexpand true :hexpand true
@@ -299,7 +300,13 @@
 (defwidget cook-picker []
   (box :class "cook deck-tex" :orientation "v" :space-evenly false :vexpand true :hexpand true
     (box :class "cook-head" :orientation "h" :space-evenly false :valign "start"
-      (label :class "cook-title" :text "WHAT'S FOR DINNER?" :xalign 0 :hexpand true)
+      (label :class "cook-title" :text "WHAT'S FOR DINNER?" :xalign 0)
+      (box :hexpand true)
+      ;; choose your mood: filter the list to quick / batch / all
+      (box :class "mood-bar" :orientation "h" :space-evenly false :valign "center"
+        (button :class {cook_mood == "quick" ? "mood-tab on quick" : "mood-tab"} :onclick "~/.local/bin/cook mood quick" (label :text "QUICK"))
+        (button :class {cook_mood == "batch" ? "mood-tab on batch" : "mood-tab"} :onclick "~/.local/bin/cook mood batch" (label :text "BATCH"))
+        (button :class {cook_mood == "all"   ? "mood-tab on all"   : "mood-tab"} :onclick "~/.local/bin/cook mood all"   (label :text "ALL")))
       (button :class "ico sm" :onclick "~/.local/bin/cook load" (label :class "g" :text {icons.refresh})))
     (box :class "pick-grid" :orientation "v" :space-evenly false :vexpand true :valign "start"
       (for row in cook_picks

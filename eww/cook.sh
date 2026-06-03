@@ -16,7 +16,7 @@ EWW="$HOME/.local/bin/eww"
 CFG="$HOME/.config/eww"
 CACHE="$HOME/.cache/cook"; IMGDIR="$CACHE/img"; mkdir -p "$IMGDIR"
 RECIPE="$CACHE/recipe.json"; STEPF="$CACHE/step"; CHECKF="$CACHE/checked"
-PICKS="$CACHE/picks-all.json"; PICKPAGE="$CACHE/pick_page"
+PICKS="$CACHE/picks-all.json"; PICKPAGE="$CACHE/pick_page"; MOODF="$CACHE/mood"
 COLS=4; PICK_PSIZE=8
 
 URL=$(cat "$CFG/tandoor-url" 2>/dev/null || echo "http://localhost:8090")
@@ -48,25 +48,33 @@ out.sort(key=lambda x:x["name"].lower())
 print(json.dumps(out))' > "$PICKS"
 }
 
+# filter the cached recipe list by mood (all|quick|batch). Echoed as JSON on stdout.
+_mood_filter='
+import os,json
+data=json.load(open(os.environ["PICKS"])); mood=os.environ.get("MOOD","all")
+if mood=="quick": data=[d for d in data if d.get("role")=="QUICK"]
+elif mood=="batch": data=[d for d in data if d.get("role")=="BATCH"]
+'
+
 push_picks(){
-  local page; page=$(cat "$PICKPAGE" 2>/dev/null || echo 0)
-  # slice current page, resolve each tile image, build rows
-  local rows; rows=$(PICKS="$PICKS" COLS="$COLS" PSIZE="$PICK_PSIZE" PAGE="$page" IMGDIR="$IMGDIR" python3 -c '
-import sys,os,json,math
-data=json.load(open(os.environ["PICKS"])); cols=int(os.environ["COLS"]); psize=int(os.environ["PSIZE"])
-page=int(os.environ["PAGE"]); imgdir=os.environ["IMGDIR"]
-pages=max(1,math.ceil(len(data)/psize)); page=max(0,min(page,pages-1))
+  local page mood; page=$(cat "$PICKPAGE" 2>/dev/null || echo 0); mood=$(cat "$MOODF" 2>/dev/null || echo all)
+  # slice current page (after mood filter), resolve each tile image, build rows
+  local rows; rows=$(PICKS="$PICKS" COLS="$COLS" PSIZE="$PICK_PSIZE" PAGE="$page" MOOD="$mood" IMGDIR="$IMGDIR" python3 -c "
+$_mood_filter
+cols=int(os.environ['COLS']); psize=int(os.environ['PSIZE']); page=int(os.environ['PAGE']); imgdir=os.environ['IMGDIR']
+import math
+pages=max(1,math.ceil(len(data)/psize)) if data else 1; page=max(0,min(page,pages-1))
 sl=data[page*psize:(page+1)*psize]
 for it in sl:
-    p=os.path.join(imgdir,str(it["id"])+".jpg")
-    it["img"]=p if os.path.exists(p) and os.path.getsize(p)>0 else ""
+    p=os.path.join(imgdir,str(it['id'])+'.jpg')
+    it['img']=p if os.path.exists(p) and os.path.getsize(p)>0 else ''
 rows=[sl[i:i+cols] for i in range(0,len(sl),cols)]
-print(json.dumps({"pages":pages,"page":page,"rows":rows}))')
+print(json.dumps({'pages':pages,'page':page,'rows':rows,'mood':mood}))")
   echo "$page" > "$PICKPAGE"
   PYJSON="$rows" python3 -c '
 import os,json,subprocess
 d=json.loads(os.environ["PYJSON"]); eww=os.path.expanduser("~/.local/bin/eww")
-subprocess.run([eww,"update","cook_view=pick","cook_loaded=true",
+subprocess.run([eww,"update","cook_view=pick","cook_loaded=true","cook_mood="+d["mood"],
   "cook_picks="+json.dumps(d["rows"]),"cook_pick_page="+str(d["page"]),"cook_pick_pages="+str(d["pages"])],check=False)'
 }
 
@@ -75,13 +83,12 @@ show_picker(){
   ( "$0" _resolve_imgs >/dev/null 2>&1 & )   # fill missing thumbnails in the background, re-push as they land
 }
 
-resolve_imgs(){   # background: resolve images for the CURRENT page, re-push after each
-  local page; page=$(cat "$PICKPAGE" 2>/dev/null || echo 0)
-  PICKS="$PICKS" PSIZE="$PICK_PSIZE" PAGE="$page" python3 -c '
-import os,json,math
-data=json.load(open(os.environ["PICKS"])); psize=int(os.environ["PSIZE"]); page=int(os.environ["PAGE"])
-sl=data[page*psize:(page+1)*psize]
-for it in sl: print(it["id"],it.get("image") or "")' | while read -r id img; do
+resolve_imgs(){   # background: resolve images for the CURRENT (mood-filtered) page, re-push after each
+  local page mood; page=$(cat "$PICKPAGE" 2>/dev/null || echo 0); mood=$(cat "$MOODF" 2>/dev/null || echo all)
+  PICKS="$PICKS" PSIZE="$PICK_PSIZE" PAGE="$page" MOOD="$mood" python3 -c "
+$_mood_filter
+psize=int(os.environ['PSIZE']); page=int(os.environ['PAGE'])
+for it in data[page*psize:(page+1)*psize]: print(it['id'],it.get('image') or '')" | while read -r id img; do
     [ -s "$IMGDIR/$id.jpg" ] && continue
     [ -n "$img" ] && { resolve_img "$id" "$img" >/dev/null; push_picks; }
   done
@@ -190,6 +197,8 @@ case "${1:-load}" in
   load|refresh) id=$(resolve_plan); if [ -n "$id" ]; then load_cook "$id"; else show_picker; fi ;;
   pick)     plan_today "${2:-}" "${3:-Dinner}"; load_cook "${2:-}" ;;
   change)   clear_today; show_picker ;;
+  mood)     echo "${2:-all}" > "$MOODF"; echo 0 > "$PICKPAGE"; push_picks
+            ( "$0" _resolve_imgs >/dev/null 2>&1 & ) ;;
   pickpage) cur=$(cat "$PICKPAGE" 2>/dev/null || echo 0)
             case "${2:-}" in prev) cur=$((cur-1));; next) cur=$((cur+1));; esac
             [ "$cur" -lt 0 ] && cur=0; echo "$cur" > "$PICKPAGE"; push_picks
