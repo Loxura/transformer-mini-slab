@@ -5,5 +5,6 @@ python3 -c 'import json
 ic={"prev":0xf048,"play":0xf04b,"pause":0xf04c,"next":0xf051,"shuffle":0xf074,
     "artist":0xf007,"heart":0xf004,"voldn":0xf027,"volup":0xf028,"mute":0xf026,
     "refresh":0xf021,"browse":0xf03a,"folder":0xf07b,"note":0xf001,
-    "back":0xf060,"close":0xf00d}
+    "back":0xf060,"close":0xf00d,"grid":0xf00a,
+    "bt":0xf293,"check":0xf00c,"link":0xf0c1}
 print(json.dumps({k:chr(v) for k,v in ic.items()}))'

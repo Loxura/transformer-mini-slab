@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 # Music controls for the deck card. Playback via mpc (mpd @127.0.0.1:6600); volume via wpctl.
 set -uo pipefail
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+EWW="$HOME/.local/bin/eww"
 SINK="@DEFAULT_AUDIO_SINK@"
 FAV_DIR="$HOME/.config/mpd/playlists"
 FAV="$FAV_DIR/favorites.m3u"
 
 case "${1:-}" in
   toggle) mpc -q toggle ;;
+
+  # flip the full-screen immersive cover view (tapping the cover calls this)
+  immersive)
+      cur=$("$EWW" get immersive 2>/dev/null)
+      [ "$cur" = "true" ] && n=false || n=true
+      "$EWW" update immersive="$n" >/dev/null 2>&1 ;;
   next)   mpc -q next ;;
   prev)   mpc -q prev ;;
 

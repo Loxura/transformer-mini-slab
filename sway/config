@@ -28,6 +28,7 @@ set $ws3 "3:Video"
 ### AUTOSTART — one eww "deck" surface; its content follows the focused workspace ####
 # exec waybar   # hidden — the eww Dash top bar replaces it
 exec /home/minideck/.local/bin/deck-launch  # single full-screen eww window (Dash + Music card)
+exec /home/minideck/.local/bin/audio-route-fix  # re-route audio to the speaker after boot (WirePlumber UCM quirk)
 assign [app_id="mpv"] $ws3        # Video: mpv lands here on demand
 workspace $ws1
 

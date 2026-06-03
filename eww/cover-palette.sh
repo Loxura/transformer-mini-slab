@@ -5,7 +5,7 @@
 # Cached per album in ~/.cache/music-card/. Palette derived from the cover via ffmpeg.
 set -uo pipefail
 CACHE="$HOME/.cache/music-card"; mkdir -p "$CACHE"
-DEFAULT='{"art":"","bg":"#16161e","accent":"#7aa2f7","text":"#e6e6ee"}'
+DEFAULT='{"art":"","bg":"#16161e","accent":"#7aa2f7","text":"#e6e6ee","glow":"#7aa2f7"}'
 emit(){ printf '%s\n' "$1"; }
 fetch(){ curl -fsSL "$1" 2>/dev/null || wget -qO- "$1" 2>/dev/null; }
 
@@ -52,8 +52,10 @@ n=len(px)
 a=(sum(p[0] for p in px)//n, sum(p[1] for p in px)//n, sum(p[2] for p in px)//n)
 bg=tuple(int(c*0.32) for c in a)                       # dark, cover-tinted
 acc=max(px,key=lambda p:max(p)-min(p))                 # most saturated pixel
+mx=max(acc) or 1
+glow=tuple(min(255,int(c*235/mx)) for c in acc)        # accent brightened so the glow reads on a dark bg
 hx=lambda c:"#%02x%02x%02x"%tuple(c)
-print(hx(bg)+" "+hx(acc))')
-bg="${pal% *}"; accent="${pal#* }"
-[ -z "$bg" ] && bg="#16161e"; [ -z "$accent" ] && accent="#7aa2f7"
-emit "{\"art\":\"$art\",\"bg\":\"$bg\",\"accent\":\"$accent\",\"text\":\"#e6e6ee\"}"
+print(hx(bg)+" "+hx(acc)+" "+hx(glow))')
+read -r bg accent glow <<<"$pal"
+[ -z "$bg" ] && bg="#16161e"; [ -z "$accent" ] && accent="#7aa2f7"; [ -z "$glow" ] && glow="#7aa2f7"
+emit "{\"art\":\"$art\",\"bg\":\"$bg\",\"accent\":\"$accent\",\"text\":\"#e6e6ee\",\"glow\":\"$glow\"}"

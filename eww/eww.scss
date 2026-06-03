@@ -4,6 +4,21 @@
   font-family: "JetBrains Mono", monospace;
 }
 
+/* Neutralise GTK's default button chrome so our flat .ico/.brow-row/.tile
+   backgrounds show. The theme draws buttons with a background-image gradient +
+   border + box-shadow that a bare background-color sits behind; without this,
+   buttons fall back to the GTK theme (light "regular" buttons). Don't depend on
+   'all: unset' alone -- it's fragile across GTK theme/env changes. */
+button {
+  background-image: none;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  min-height: 0;
+  min-width: 0;
+}
+
 /* ===== Dash ===== */
 .dash {
   background-color: #16161e;
@@ -27,16 +42,18 @@
 .ticker-h   { font-size: 13px; color: #7aa2f7; margin-bottom: 14px; }
 .ticker     { font-size: 26px; font-weight: bold; color: #9ece6a; }
 
-/* ===== Music card (ws2) - palette adapts to the cover via inline :style ===== */
+/* ===== Music card (ws2) - landscape two-column; palette adapts via inline :style ===== */
 .card-root { padding: 0; }
-.mc-left   { padding: 40px; }
-.mc-right  { padding: 40px 50px; background-color: rgba(0,0,0,0.22); }
-.cover     { border-radius: 18px; margin-bottom: 20px; }
-.np-title  { font-size: 30px; font-weight: bold; }
-.np-artist { font-size: 18px; margin-bottom: 22px; }
+.mc-art      { padding: 80px; }
+.mc-info     { padding: 36px 54px; }
+.cover       { border-radius: 18px; }
+/* breathing glow -- box-shadow size is set inline from 'level'; transition tweens frames */
+.cover-wrap  { border-radius: 18px; transition: box-shadow 110ms ease-out; }
+.np-title  { font-size: 32px; font-weight: bold; }
+.np-artist { font-size: 19px; margin-top: 4px; margin-bottom: 26px; }
 .controls  { margin: 7px 0; }
 .ico       { background-color: rgba(255,255,255,0.08); border-radius: 40px; padding: 13px 16px; margin: 0 6px; }
-.ico:hover { background-color: rgba(255,255,255,0.20); }
+.ico:active { background-color: rgba(255,255,255,0.20); }
 .ico.big   { padding: 15px 19px; }
 .ico.sm    { padding: 7px 9px; margin: 0; }
 .ico.sm .g { font-size: 15px; }
@@ -47,20 +64,46 @@
 .vol       { color: #e0af68; font-size: 15px; padding: 0 10px; }
 .sec       { font-size: 13px; color: rgba(255,255,255,0.55); margin: 16px 0 8px 0; }
 .album     { background-color: rgba(255,255,255,0.07); border-radius: 10px; padding: 9px 14px; margin: 3px 0; }
-.album:hover { background-color: rgba(255,255,255,0.18); }
+.album:active { background-color: rgba(255,255,255,0.18); }
 .album-name  { color: #e6e6ee; font-size: 15px; }
 .nextup      { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px; }
 
-/* spectrum visualizer - bars themed to the cover accent (set inline) */
-.cava        { min-height: 90px; min-width: 430px; margin-top: 18px; }
-.cava-bar    { min-width: 7px; margin: 0 2px; border-radius: 3px 3px 0 0; }
+/* bluetooth panel (full-screen overlay) */
+.bt-root   { padding: 28px 36px; }
+.bt-sub    { color: rgba(255,255,255,0.55); font-size: 15px; margin: 4px 0 14px 0; }
+.bt-mac    { color: rgba(255,255,255,0.4); font-size: 12px; }
+.bt-state  { color: #9ece6a; font-size: 18px; margin-left: 14px; }
+.bt-scrollpad { padding-top: 96px; }   /* clear the floating header (bar + status line) */
+.bt-on     { background-color: rgba(158,206,106,0.16); }
+.bt-on:active { background-color: rgba(158,206,106,0.26); }
 
-/* ---- tap-focused library browser (full-screen overlay) ---- */
-.browser      { padding: 34px 44px; }
-.browser-bar  { margin-bottom: 18px; }
-.brow-path    { color: #e6e6ee; font-size: 22px; font-weight: bold; margin-left: 16px; }
-.brow-scroll  { }
+/* ---- album-cover grid browser (full-screen overlay) ---- */
+.grid-root    { padding: 28px 36px; }
+.grid-bar     { margin-bottom: 16px; }
+.grid-title   { color: #e6e6ee; font-size: 24px; font-weight: bold; margin-left: 16px; }
+.grid-row     { margin: 2px 0; }
+/* track list starts at the scroll's top edge; pad so the floating back button clears row 1 */
+.grid-scrollpad { padding-top: 56px; }
+.tile         { padding: 14px; margin: 6px; border-radius: 16px; background-color: rgba(255,255,255,0.04); }
+.tile:active   { background-color: rgba(255,255,255,0.14); }
+.tile-art     { border-radius: 12px; }
+.tile-ph      { min-width: 210px; min-height: 210px; border-radius: 12px; }
+.tile-ph-g    { font-size: 46px; color: rgba(0,0,0,0.35); }
+.tile-name    { color: #e6e6ee; font-size: 17px; font-weight: bold; margin-top: 12px; }
+.tile-artist  { color: rgba(255,255,255,0.55); font-size: 14px; margin-top: 2px; }
+
+/* per-album track list (reused by the grid's album view) */
 .brow-row     { padding: 16px 18px; margin: 4px 0; border-radius: 12px; background-color: rgba(255,255,255,0.05); }
-.brow-row:hover { background-color: rgba(255,255,255,0.16); }
+.brow-row:active { background-color: rgba(255,255,255,0.16); }
 .brow-ico     { font-size: 20px; color: rgba(255,255,255,0.7); margin-right: 18px; }
 .brow-label   { color: #e6e6ee; font-size: 20px; }
+.play-all     { background-color: rgba(255,255,255,0.12); margin-bottom: 10px; }
+.play-all .brow-label { font-weight: bold; }
+
+/* ---- full-screen immersive cover ---- */
+.immersive    { }
+.imm-info     { padding: 0 0 54px 0; background-image: linear-gradient(transparent, rgba(0,0,0,0.72)); }
+.imm-title    { color: #ffffff; font-size: 34px; font-weight: bold; }
+.imm-artist   { color: rgba(255,255,255,0.8); font-size: 22px; margin-top: 4px; margin-bottom: 22px; }
+.imm-controls .ico   { background-color: rgba(255,255,255,0.14); }
+.imm-controls .ico:active { background-color: rgba(255,255,255,0.28); }

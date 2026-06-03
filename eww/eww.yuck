@@ -49,62 +49,140 @@
 (defpoll nextup    :interval "1s"   `pos=$(mpc -f %position% current 2>/dev/null); [ -n "$pos" ] && mpc -f '%artist% - %title%' playlist 2>/dev/null | sed -n "$((pos+1))p"`)
 (defpoll cover     :interval "3s"   `~/.local/bin/cover-palette`)
 (defpoll icons     :interval "999999s" `~/.local/bin/fa-icons`)
-(deflisten cava    :initial "[]"     `~/.local/bin/cava-bars`)
+(deflisten level   :initial "0"      `~/.local/bin/audio-level`)   ;; 0-100 loudness for the breathing cover glow
 
-;; tap-focused library browser state (driven imperatively by ~/.local/bin/music-browse)
-(defvar browsing   false)
-(defvar browse     "[]")
-(defvar browsepath "")
+;; full-screen immersive cover view (toggled by tapping the cover)
+(defvar immersive false)
 
-(defwidget cava-viz []
-  (box :class "cava" :orientation "h" :space-evenly true :valign "end" :halign "center"
-    (for v in cava
-      (box :class "cava-bar" :valign "end" :vexpand false
-        :style "min-height: ${v}px; background-color: ${cover.accent};"))))
+;; album-cover grid browser state (driven imperatively by ~/.local/bin/album-grid)
+(defvar gridding   false)
+(defvar gridview   "albums")   ;; "albums" = cover grid, "album" = one album's tracks
+(defvar gridtitle  "Albums")
+(defvar gridaa     "")
+(defvar grid       "[]")       ;; rows (arrays) of album objects {aa,album,art,key}
+(defvar gridtracks "[]")
 
-(defwidget browser []
-  (box :class "browser" :orientation "v" :space-evenly false :visible browsing :vexpand true :hexpand true :style "background-color: ${cover.bg};"
-    (box :class "browser-bar" :orientation "h" :space-evenly false :valign "center"
-      (button :class "ico sm" :onclick "~/.local/bin/music-browse up"    (label :class "g" :text {icons.back}))
-      (label  :class "brow-path" :text {browsepath != "" ? browsepath : "Library"} :limit-width 48 :xalign 0)
-      (box :hexpand true)
-      (button :class "ico sm" :onclick "~/.local/bin/music-browse close" (label :class "g" :text {icons.close})))
-    (scroll :class "brow-scroll" :vscroll true :vexpand true
-      (box :orientation "v" :space-evenly false
-        (for it in browse
-          (button :class "brow-row" :onclick {it.type == "dir" ? "~/.local/bin/music-browse cd '${it.path}'" : "~/.local/bin/music-browse play '${it.path}'"}
-            (box :orientation "h" :space-evenly false :valign "center"
-              (label :class "brow-ico g" :text {it.type == "dir" ? icons.folder : icons.note})
-              (label :class "brow-label" :text {it.label} :limit-width 46 :xalign 0))))))))
+;; bluetooth pairing/connection panel state (driven by ~/.local/bin/bt-ctl)
+(defvar bting    false)
+(defvar bt_armed true)                       ;; false briefly after open: swallows the tap that opened the panel
+(defvar bt       "[]")                       ;; [{mac,name,connected,paired,unnamed}]
+(defvar btstatus {'{"powered":false,"connected":""}'})
+
+;; ---- album-cover grid browser (full-screen overlay) ----
+(defwidget album-grid []
+  (box :class "grid-root" :orientation "v" :space-evenly false :visible gridding :vexpand true :hexpand true :style "background-color: ${cover.bg};"
+    (box :class "grid-bar" :visible {gridview != "album"} :orientation "h" :space-evenly false :valign "center"
+      (button :class "ico sm" :onclick {gridview == "album" ? "~/.local/bin/album-grid back" : "~/.local/bin/album-grid close"}
+        (label :class "g" :text {gridview == "album" ? icons.back : icons.close}))
+      (label :class "grid-title" :text gridtitle :limit-width 40 :xalign 0)
+      (box :hexpand true))
+    ;; albums view — rows of tappable cover tiles
+    (box :visible {gridview == "albums"} :vexpand true :hexpand true
+      (scroll :vscroll true :vexpand true :hexpand true
+        (box :orientation "v" :space-evenly false :halign "center"
+          (for row in grid
+            (box :class "grid-row" :orientation "h" :space-evenly false :halign "center"
+              (for it in row
+                (button :class "tile" :onclick "~/.local/bin/album-grid album '${it.aa}' '${it.album}'"
+                  (box :orientation "v" :space-evenly false :halign "center"
+                    (overlay
+                      (box :class "tile-ph" :halign "center" :valign "center" :style "background-color: ${cover.accent};"
+                        (label :class "tile-ph-g g" :text {icons.note}))
+                      (image :class "tile-art" :visible {it.art != ""} :path {it.art} :image-width 210 :image-height 210))
+                    (label :class "tile-name"   :text {it.album} :limit-width 20 :xalign 0.5)
+                    (label :class "tile-artist" :text {it.aa}    :limit-width 24 :xalign 0.5)))))))))
+    ;; one album — its tracks, plus a play-all row
+    (box :visible {gridview == "album"} :vexpand true :hexpand true
+      (overlay
+        (scroll :vscroll true :vexpand true
+          (box :class "grid-scrollpad" :orientation "v" :space-evenly false
+            (button :class "brow-row play-all" :onclick "~/.local/bin/album-grid playalbum '${gridaa}' '${gridtitle}'"
+              (box :orientation "h" :space-evenly false :valign "center"
+                (label :class "brow-ico g" :text {icons.play})
+                (label :class "brow-label" :text "Play album" :xalign 0)))
+            (for t in gridtracks
+              (button :class "brow-row" :onclick "~/.local/bin/album-grid playtrack '${t.file}'"
+                (box :orientation "h" :space-evenly false :valign "center"
+                  (label :class "brow-ico g" :text {icons.note})
+                  (label :class "brow-label" :text {t.label} :limit-width 46 :xalign 0))))))
+        ;; floating back button OVER the scroll -- keeps the scroll viewport at y=0 (no row offset)
+        (button :class "ico sm" :halign "start" :valign "start" :onclick "~/.local/bin/album-grid back"
+          (label :class "g" :text {icons.back}))))))
+
+;; ---- bluetooth pairing/connection panel (full-screen overlay) ----
+(defwidget bt-panel []
+  (box :class "bt-root" :orientation "v" :space-evenly false :visible bting :vexpand true :hexpand true :style "background-color: ${cover.bg};"
+    (overlay
+      (scroll :vscroll true :vexpand true :hexpand true
+        (box :class "bt-list bt-scrollpad" :orientation "v" :space-evenly false
+          (for d in bt
+            (button :class {d.connected ? "brow-row bt-on" : "brow-row"} :onclick {bt_armed ? "~/.local/bin/bt-ctl toggle '${d.mac}'" : ""}
+              (box :orientation "h" :space-evenly false :valign "center"
+                (label :class "brow-ico g" :text {icons.bt})
+                (box :orientation "v" :space-evenly false :hexpand true
+                  (label :class "brow-label" :text {d.name} :limit-width 30 :xalign 0)
+                  (label :class "bt-mac" :text {d.mac} :xalign 0))
+                (label :class "bt-state g" :text {d.connected ? icons.check : (d.paired ? icons.link : "")}))))))
+      ;; floating header over the scroll -- keeps the device list starting at the top edge (no row offset)
+      (box :class "bt-head" :halign "fill" :valign "start" :orientation "v" :space-evenly false :style "background-color: ${cover.bg};"
+        (box :class "grid-bar" :orientation "h" :space-evenly false :valign "center"
+          (button :class "ico sm" :onclick "~/.local/bin/bt-ctl close" (label :class "g" :text {icons.close}))
+          (label :class "grid-title" :text "Bluetooth" :xalign 0)
+          (box :hexpand true)
+          (button :class "ico sm" :onclick "~/.local/bin/bt-ctl rescan" (label :class "g" :text {icons.refresh})))
+        (label :class "bt-sub" :text {btstatus.connected != "" ? ("Connected · " + btstatus.connected) : "Scanning for devices…"} :xalign 0 :limit-width 46)))))
+
+;; ---- full-screen immersive cover (the GTK CSS fills/crops the cover to the screen) ----
+(defwidget immersive-w []
+  (box :class "immersive" :visible immersive :vexpand true :hexpand true
+       :style {cover.art != "" ? "background-image: url('file://${cover.art}'); background-size: cover; background-position: center;" : "background-color: ${cover.bg};"}
+    (overlay
+      (eventbox :onclick "~/.local/bin/music-ctl immersive" (box :vexpand true :hexpand true))
+      (box :class "imm-info" :orientation "v" :space-evenly false :valign "end" :halign "fill"
+        (label :class "imm-title"  :text {np_title != "" ? np_title : "—"} :limit-width 40 :xalign 0.5)
+        (label :class "imm-artist" :text {np_artist} :limit-width 50 :xalign 0.5)
+        (box :class "imm-controls" :orientation "h" :space-evenly false :halign "center"
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl prev"   (label :class "g" :text {icons.prev}))
+          (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {state == "playing" ? icons.pause : icons.play}))
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl next"   (label :class "g" :text {icons.next})))))))
 
 (defwidget musiccard-w []
   (overlay
-    ;; ---- base: one centered column; the cover is the dominant element ----
-    (box :class "card-root" :orientation "v" :space-evenly false :valign "center" :halign "center" :vexpand true :hexpand true :style "background-color: ${cover.bg};"
-      (image :class "cover" :path {cover.art} :image-width 430 :image-height 430)
-      (label :class "np-title"  :text {np_title != "" ? np_title : "—"} :limit-width 36 :xalign 0.5 :style "color: ${cover.text};")
-      (label :class "np-artist" :text {np_artist} :limit-width 44 :xalign 0.5 :style "color: ${cover.accent};")
-      (box :class "controls" :orientation "h" :space-evenly false :halign "center"
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl prev"   (label :class "g" :text {icons.prev}))
-        (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {state == "playing" ? icons.pause : icons.play}))
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl next"   (label :class "g" :text {icons.next})))
-      (box :class "controls" :orientation "h" :space-evenly false :halign "center"
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleall"    (label :class "g" :text {icons.shuffle}))
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleartist" (label :class "g" :text {icons.artist}))
-        (button :class "ico fav" :onclick "~/.local/bin/music-ctl favorite"      (label :class "g" :text {icons.heart}))
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl voldown"       (label :class "g" :text {icons.voldn}))
-        (label  :class "vol" :text "${vol}%")
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl volup"         (label :class "g" :text {icons.volup}))
-        (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute})))
-      (cava-viz)
-      ;; up next - small, at the very bottom, centered
-      (label :class "nextup" :text {nextup != "" ? ("UP NEXT  ·  " + nextup) : ""} :limit-width 50 :xalign 0.5))
-    ;; ---- overlay: browse + refresh pinned to the top-right corner ----
+    ;; ---- base: landscape two columns — cover fills the left, now-playing the right ----
+    (box :class "card-root" :orientation "h" :space-evenly true :valign "fill" :halign "fill" :vexpand true :hexpand true :style "background-color: ${cover.bg};"
+      (box :class "mc-art" :halign "center" :valign "center" :hexpand true
+        ;; cover-wrap carries the breathing glow: box-shadow scales with `level`
+        (box :class "cover-wrap" :halign "center" :valign "center"
+             :style "box-shadow: 0 0 ${round(18 + level * 0.42, 0)}px ${round(1 + level * 0.12, 0)}px ${cover.glow};"
+          (eventbox :onclick "~/.local/bin/music-ctl immersive"
+            (image :class "cover" :path {cover.art} :image-width 480 :image-height 480))))
+      (box :class "mc-info" :orientation "v" :space-evenly false :valign "center" :halign "center" :hexpand true
+        (label :class "np-title"  :text {np_title != "" ? np_title : "—"} :limit-width 30 :xalign 0.5 :style "color: ${cover.text};")
+        (label :class "np-artist" :text {np_artist} :limit-width 36 :xalign 0.5 :style "color: ${cover.accent};")
+        (box :class "controls" :orientation "h" :space-evenly false :halign "center"
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl prev"   (label :class "g" :text {icons.prev}))
+          (button :class "ico big" :onclick "~/.local/bin/music-ctl toggle" (label :class "g" :text {state == "playing" ? icons.pause : icons.play}))
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl next"   (label :class "g" :text {icons.next})))
+        (box :class "controls" :orientation "h" :space-evenly false :halign "center"
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleall"    (label :class "g" :text {icons.shuffle}))
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl shuffleartist" (label :class "g" :text {icons.artist}))
+          (button :class "ico fav" :onclick "~/.local/bin/music-ctl favorite"      (label :class "g" :text {icons.heart}))
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl voldown"       (label :class "g" :text {icons.voldn}))
+          (label  :class "vol" :text "${vol}%")
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl volup"         (label :class "g" :text {icons.volup}))
+          (button :class "ico"     :onclick "~/.local/bin/music-ctl mute"          (label :class "g" :text {icons.mute})))
+        (label :class "nextup" :text {nextup != "" ? ("UP NEXT  ·  " + nextup) : ""} :limit-width 44 :xalign 0.5)))
+    ;; ---- overlay: album-grid + bluetooth + refresh pinned to the top-right corner ----
     (box :class "corner" :halign "end" :valign "start" :orientation "h" :space-evenly false
-      (button :class "ico sm" :onclick "~/.local/bin/music-browse open" (label :class "g" :text {icons.browse}))
-      (button :class "ico sm" :onclick "~/.local/bin/music-ctl rescan"  (label :class "g" :text {icons.refresh})))
-    ;; ---- overlay: full-screen library browser (toggled by `browsing`) ----
-    (browser)))
+      (button :class "ico sm" :onclick "~/.local/bin/album-grid open" (label :class "g" :text {icons.grid}))
+      (button :class "ico sm" :onclick "~/.local/bin/bt-ctl open"     (label :class "g" :text {icons.bt}))
+      (button :class "ico sm" :onclick "~/.local/bin/music-ctl rescan" (label :class "g" :text {icons.refresh})))
+    ;; ---- overlay: full-screen album-cover browser (toggled by `gridding`) ----
+    (album-grid)
+    ;; ---- overlay: full-screen bluetooth panel (toggled by `bting`) ----
+    (bt-panel)
+    ;; ---- overlay: full-screen immersive cover (toggled by `immersive`) ----
+    (immersive-w)))
 
 ;; ============================ Deck root ============================
 ;; Stack the modes; only the focused workspace's widget is visible (hidden widgets
@@ -119,6 +197,6 @@
   :monitor 0
   :stacking "bg"
   :exclusive false
-  :focusable false
+  :focusable true
   :geometry (geometry :width "100%" :height "100%" :anchor "center")
   (deck-root))
