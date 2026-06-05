@@ -542,16 +542,28 @@ def enrich_food(food, used_units, pt_by_key, tau, dry_run, enriched, review):
     source = rec.get("source", "estimate")
     if source == "usda" and not usda:
         source = "web" if snippets else "estimate"   # honesty: can't claim USDA if we never consulted it
+
+    # Atwater sanity: kcal must roughly equal 4*protein + 4*carb + 9*fat. Catches internally
+    # inconsistent macro sets a model can emit confidently (e.g. 20 kcal but 48 g carb) — the
+    # deterministic honesty rail that works even web-only, with no USDA to cross-check against.
+    atwater = ""
+    if "calories" in macros:
+        implied = 4 * macros.get("protein", 0) + 4 * macros.get("carbohydrates", 0) + 9 * macros.get("fat", 0)
+        cal = macros["calories"]
+        if max(cal, implied) > 20 and abs(implied - cal) > 0.4 * max(cal, implied):
+            agree = False                              # force to review with a clear reason
+            atwater = f" atwater:{cal:.0f}vs{implied:.0f}"
+
     ok = conf >= tau and agree and len(macros) >= 4    # need the core macros, agreeing, confident
 
     if dry_run:
-        log(f"  DRY {name}: conf={conf:.2f} agree={agree} src={source} {macros}")
+        log(f"  DRY {name}: conf={conf:.2f} agree={agree} src={source}{atwater} {macros}")
         return "dry"
 
     if not ok:
-        review[str(food["id"])] = {"name": name, "reason": f"conf={conf:.2f} agree={agree}",
+        review[str(food["id"])] = {"name": name, "reason": f"conf={conf:.2f} agree={agree}{atwater}",
                                    "macros": macros, "source": source, "ts": int(time.time())}
-        vlog(f"  ~ review {name} (conf {conf:.2f}, agree {agree})")
+        vlog(f"  ~ review {name} (conf {conf:.2f}, agree {agree}{atwater})")
         return "review"
 
     fdc_id = usda["fdc_id"] if (source == "usda" and usda) else None
