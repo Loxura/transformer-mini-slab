@@ -1,0 +1,31 @@
+# transformer-mini-slab — SearXNG (self-hosted metasearch).
+#
+# Deliberately a STANDALONE top-level stack, not part of cooking/. It is general-purpose:
+#   - a private, ad-free web search UI on the LAN (open http://<mainframe>:8091), AND
+#   - a JSON search API that the cooking macro-enricher (cooking/enrich/enrich.py) consumes.
+# It can go up/down independently of Tandoor and is easy to expand later (more engines, etc.).
+#
+# One container. The real ./settings.yml is gitignored and holds the generated secret_key; it is
+# mounted read-only. Copy settings.yml.example -> settings.yml and generate the secret (see README).
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "8091:8080"             # LAN: http://<mainframe>:8091  (8090 is Tandoor)
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8091/
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"

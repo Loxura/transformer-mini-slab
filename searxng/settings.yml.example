@@ -1,0 +1,33 @@
+# SearXNG settings template — transformer-mini-slab LAN instance.
+# Copy to settings.yml (gitignored) and replace the "ultrasecret" placeholder with a real secret:
+#   cp settings.yml.example settings.yml
+#   sed -i "s|ultrasecret|$(head -c50 /dev/urandom | base64 | tr -d '\n')|" settings.yml
+# The real settings.yml is mounted read-only into the container; the secret never enters git.
+use_default_settings: true
+
+general:
+  instance_name: "blues search"
+  debug: false
+
+search:
+  # JSON is REQUIRED for programmatic use (the macro-enricher hits /search?format=json).
+  # html stays on so the box is also a normal browser search UI.
+  formats:
+    - html
+    - json
+  autocomplete: "duckduckgo"
+  default_lang: "en"
+
+server:
+  secret_key: "ultrasecret"          # <-- replace per the header before first boot
+  # LAN-only deployment behind no proxy; allow API clients (the enricher) without a referer/limiter.
+  limiter: false
+  public_instance: false
+  image_proxy: true
+  method: "GET"
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  theme_args:
+    simple_style: dark
