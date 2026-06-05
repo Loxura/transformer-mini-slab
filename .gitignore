@@ -4,10 +4,16 @@ Thumbs.db
 *.swp
 *~
 
+# python bytecode
+__pycache__/
+*.pyc
+
 # local state / secrets
 *.log
 *.bak
 .env
+# SearXNG real config holds the generated secret_key; only the .example is committed
+searxng/settings.yml
 
 # *arr / slskd / qBittorrent runtime state (contains API keys & credentials)
 server/config/
@@ -27,3 +33,8 @@ eww/eww
 
 # cooking ingest watcher runtime state (seen-set + feed etags)
 cooking/ingest/state/
+# cooking macro-enricher runtime state (enriched skip-set, cleanup/review files)
+cooking/enrich/state/
+# DB / media backups (whole-database dumps — never commit)
+*.sql
+cooking/*.tgz
