@@ -1,0 +1,29 @@
+# transformer-mini-slab — Ollama (local LLM runtime), containerized for isolation.
+#
+# Standalone top-level stack, like searxng/ and cooking/. It serves the reconciler model the cooking
+# macro-enricher (cooking/enrich/enrich.py) calls, and is generally useful for any local LLM work.
+# Replaces the host-installed `ollama serve` systemd service so everything runs in containers.
+#
+# GPU: the host's `nvidia` Docker runtime (RTX 3060, 12 GB) is passed through so models run on the GPU.
+# Models live in the named volume `ollama_models` (isolated from the host's ~/.ollama store).
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    # Host's registered nvidia runtime + these caps = GPU passthrough into the container.
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Listen on all container interfaces so the published port reaches it.
+      - OLLAMA_HOST=0.0.0.0:11434
+    ports:
+      # Host port is configurable (see .env). Default 11434 = the canonical Ollama port, so once the
+      # host systemd service is retired this is a drop-in (enricher's localhost:11434 keeps working).
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
+    volumes:
+      - ollama_models:/root/.ollama          # dedicated model store (separation from host ~/.ollama)
+
+volumes:
+  ollama_models:
