@@ -350,7 +350,13 @@ def usda_lookup(name):
     SUGAR = (2000, 1063)            # Total Sugars; else Sugars (NLEA)
     direct = {1003: "protein", 1005: "carbohydrates", 1004: "fat", 1079: "fiber"}
     qwords = [w for w in re.findall(r"[a-z]+", name.lower()) if len(w) > 2]
-    cands = []                                               # (-overlap, idx, food, macros) for stable best
+    # Processed-form qualifiers: when the query didn't ask for them, a candidate carrying one is the
+    # wrong form (e.g. "avocado" -> "Oil, avocado" 884 kcal; "radishes" -> a dried form 309 kcal).
+    # Penalise these so the base/raw food wins. Only reorders the candidate fed to Gemma — the
+    # downstream Atwater + agreement gates still decide every write, so this can't ship a bad value.
+    PROCESSED = ("dried", "dehydrated", "powder", "powdered", "oil", "fried", "roasted", "toasted",
+                 "canned", "frozen", "sauce", "paste", "concentrate", "syrup", "sweetened", "juice")
+    cands = []                                               # (-overlap, penalty, extra, idx, food, macros)
     for idx, food in enumerate(data["foods"]):
         by_id = {n["nutrientId"]: float(n["value"]) for n in food.get("foodNutrients", [])
                  if n.get("nutrientId") is not None and n.get("value") is not None}
@@ -362,12 +368,17 @@ def usda_lookup(name):
         if "calories" not in macros or len(macros) < 4:      # skip nutrient-less / partial entries
             continue
         desc = (food.get("description") or "").lower()
+        dwords = re.findall(r"[a-z]+", desc)
         overlap = sum(1 for w in qwords if w in desc)        # how many query words the desc actually contains
-        cands.append((-overlap, idx, food, macros))
+        penalty = sum(1 for w in PROCESSED if w in dwords and w not in qwords)
+        if "raw" in dwords and "raw" not in qwords:
+            penalty -= 1                                     # prefer the unprocessed base form ("Spinach, raw")
+        extra = sum(1 for w in dwords if w not in qwords)    # prefer concise descs ("Radishes, raw")
+        cands.append((-overlap, penalty, extra, idx, food, macros))
     if not cands:
         return None
-    cands.sort()                                             # best query-overlap first; ties keep USDA order
-    _, _, food, macros = cands[0]
+    cands.sort()                            # best overlap, then base/raw form, then concise, then USDA order
+    _, _, _, _, food, macros = cands[0]
     return {"macros": macros, "fdc_id": food.get("fdcId"),
             "desc": food.get("description", ""), "portions": food.get("foodPortions", [])}
 
