@@ -23,7 +23,8 @@ DECK="${ARGS[0]:-${DECK:-minideck@192.168.0.32}}"
 say(){ printf '  %s\n' "$*"; }
 scpq(){ [ "$DRY" = 1 ] && { say "would scp $1 -> $2"; return; }; scp -q "$@"; }
 
-echo "== deploy deck -> $DECK ${DRY:+(dry-run)} =="
+lbl=""; [ "$DRY" = 1 ] && lbl=" (dry-run)"
+echo "== deploy deck -> $DECK$lbl =="
 
 # 0. reachable?
 if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$DECK" true 2>/dev/null; then
