@@ -338,30 +338,38 @@ def usda_lookup(name):
     if not USDA_KEY:
         return None
     q = urllib.parse.urlencode({
-        "query": name, "api_key": USDA_KEY, "pageSize": 3,
-        "dataType": "SR Legacy,Foundation,Survey (FNDDS)",
+        "query": name, "api_key": USDA_KEY, "pageSize": 5,
+        "dataType": "Foundation,SR Legacy",          # analytical reference foods (full per-100g macros)
     })
     data = http_json(f"https://api.nal.usda.gov/fdc/v1/foods/search?{q}")
     if not data or not data.get("foods"):
         return None
-    food = data["foods"][0]
-    wanted = {fdc: key for key, fdc in FDC_BY_KEY.items()}
-    macros = {}
-    for n in food.get("foodNutrients", []):
-        num = n.get("nutrientNumber")
-        try:
-            num = int(float(num)) if num is not None else None
-        except (TypeError, ValueError):
-            num = None
-        if num in wanted and n.get("value") is not None:
-            macros[wanted[num]] = round(float(n["value"]), 2)   # SR/Foundation values are per 100 g
-    if not macros:
+    # Match on nutrientId (1008, 1003, ...), NOT nutrientNumber ("208","203", ...). Calories and
+    # sugar have alternate ids on some foods, so fall back. Pick the first result with real macros.
+    CAL = (1008, 2048, 2047)        # Energy; else Atwater specific / general
+    SUGAR = (2000, 1063)            # Total Sugars; else Sugars (NLEA)
+    direct = {1003: "protein", 1005: "carbohydrates", 1004: "fat", 1079: "fiber"}
+    qwords = [w for w in re.findall(r"[a-z]+", name.lower()) if len(w) > 2]
+    cands = []                                               # (-overlap, idx, food, macros) for stable best
+    for idx, food in enumerate(data["foods"]):
+        by_id = {n["nutrientId"]: float(n["value"]) for n in food.get("foodNutrients", [])
+                 if n.get("nutrientId") is not None and n.get("value") is not None}
+        macros = {key: round(by_id[nid], 2) for nid, key in direct.items() if nid in by_id}
+        for nid in CAL:
+            if nid in by_id: macros["calories"] = round(by_id[nid], 2); break
+        for nid in SUGAR:
+            if nid in by_id: macros["sugar"] = round(by_id[nid], 2); break
+        if "calories" not in macros or len(macros) < 4:      # skip nutrient-less / partial entries
+            continue
+        desc = (food.get("description") or "").lower()
+        overlap = sum(1 for w in qwords if w in desc)        # how many query words the desc actually contains
+        cands.append((-overlap, idx, food, macros))
+    if not cands:
         return None
-    return {
-        "macros": macros, "fdc_id": food.get("fdcId"),
-        "desc": food.get("description", ""),
-        "portions": food.get("foodPortions", []),
-    }
+    cands.sort()                                             # best query-overlap first; ties keep USDA order
+    _, _, food, macros = cands[0]
+    return {"macros": macros, "fdc_id": food.get("fdcId"),
+            "desc": food.get("description", ""), "portions": food.get("foodPortions", [])}
 
 
 def searx_snippets(name, n=5):
