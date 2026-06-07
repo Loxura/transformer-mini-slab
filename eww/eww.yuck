@@ -289,6 +289,11 @@
 (defvar cook_pick_page  0)
 (defvar cook_pick_pages 1)
 (defvar cook_mood       "all")     ;; all | quick | batch -- picker filter ("choose your mood")
+(defvar cook_kcal       0)         ;; per-serving macros, rolled up by Tandoor from enriched foods
+(defvar cook_pro        0)
+(defvar cook_carb       0)
+(defvar cook_fat        0)
+(defvar cook_macros     "no")      ;; no (none yet) | partial (some foods unenriched) | yes (complete)
 
 (defwidget cook-empty []
   (box :class "cook cook-empty" :orientation "v" :space-evenly false :valign "center" :halign "center" :vexpand true :hexpand true
@@ -333,7 +338,15 @@
         (label :class "cook-title" :text cook_title :limit-width 24 :xalign 0)
         (box :class "cook-meta" :orientation "h" :space-evenly false :halign "fill" :valign "center"
           (label :class {cook_role == "QUICK" ? "badge cook-role quick" : "badge cook-role batch"} :text cook_role :visible {cook_role != ""})
-          (label :class "cook-sub" :text cook_sub :xalign 0 :halign "fill" :hexpand true)))
+          (label :class "cook-sub" :text cook_sub :xalign 0 :halign "fill" :hexpand true))
+        ;; per-serving macros (Tandoor rolls these up from the enriched foods); "~" = partial data
+        (box :class "cook-macros" :orientation "h" :space-evenly false :halign "start" :valign "center" :visible {cook_macros != "no"}
+          (label :class "macro-kcal" :text "${cook_kcal} KCAL")
+          (label :class "macro-cell p" :text "${cook_pro}P")
+          (label :class "macro-cell c" :text "${cook_carb}C")
+          (label :class "macro-cell f" :text "${cook_fat}F")
+          (label :class "macro-per" :text {cook_macros == "partial" ? "~ /serving" : "/serving"}))
+        (label :class "cook-macros-none" :text "MACROS PENDING" :xalign 0 :visible {cook_macros == "no"}))
       (button :class "cook-change" :onclick "~/.local/bin/cook change" (label :text "CHANGE"))
       (button :class "ico sm" :onclick "~/.local/bin/cook load" (label :class "g" :text {icons.refresh})))
     (box :class "cook-body" :orientation "h" :space-evenly false :vexpand true

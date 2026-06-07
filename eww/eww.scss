@@ -240,6 +240,16 @@ $c-red:    #D6005A;
 .cook-role.quick { @include sticker($c-lime, $ink); }
 .cook-sub    { font-size: 15px; font-weight: bold; letter-spacing: 2px; color: #b9b9b9; }
 
+/* per-serving macros: stamped kcal sticker + P/C/F cells (Tandoor's roll-up of enriched foods) */
+.cook-macros { margin-top: 12px; }
+.macro-kcal  { @include sticker($c-amber, $ink); font-size: 16px; margin-right: 12px; }
+.macro-cell  { @include sticker($paper, $ink); font-size: 14px; margin-right: 8px; }
+.macro-cell.p { background-color: $c-lime; }
+.macro-cell.c { background-color: $c-blue;  color: $paper; }
+.macro-cell.f { background-color: $c-amber; }
+.macro-per   { font-size: 13px; font-weight: bold; letter-spacing: 1px; color: #8f8f8f; margin-left: 6px; }
+.cook-macros-none { margin-top: 12px; font-size: 13px; font-weight: bold; letter-spacing: 2px; color: #6f6f6f; }
+
 .cook-body   { }
 /* LEFT: ingredient checklist -- stamped square checkbox + label, tap toggles */
 .cook-ings   { min-width: 600px; margin-right: 28px; }

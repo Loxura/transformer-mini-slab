@@ -154,7 +154,26 @@ kws=[(k.get("label") or k.get("name") or "").lower() for k in d.get("keywords",[
 role="BATCH" if "batch" in kws else ("QUICK" if "quick" in kws else "")
 total=int(d.get("working_time") or 0)+int(d.get("waiting_time") or 0); serv=d.get("servings") or 1
 sub=" / ".join(x for x in ([f"{serv} SERVINGS",(f"{total} MIN" if total else "")]) if x)
-print(json.dumps({"title":(d.get("name") or "Untitled").upper(),"sub":sub,"role":role,"ings":ings,"steps":steps}))'
+# macros: Tandoor computes food_properties (per-recipe nutrient roll-up from our enriched foods).
+# Sum each nutrient across foods (skip foods with no value), report PER SERVING + a honesty status:
+#   yes = every food contributed, partial = some foods unenriched (undercount), no = nothing yet.
+fp=d.get("food_properties") or {}
+def nut(name):
+    for pt in fp.values():
+        if (pt.get("name") or "").lower()==name:
+            tot=0.0; have=0; miss=0
+            for fv in (pt.get("food_values") or {}).values():
+                if fv.get("value") is None: miss+=1
+                else: tot+=fv["value"]; have+=1
+            return tot,have,miss
+    return 0.0,0,0
+sv=serv if isinstance(serv,(int,float)) and serv else 1
+per=lambda x:int(round(x/sv))
+kcal,have,miss=nut("calories")
+macros="no" if have==0 else ("partial" if miss>0 else "yes")
+m={"kcal":per(kcal),"pro":per(nut("protein")[0]),"carb":per(nut("carbohydrates")[0]),
+   "fat":per(nut("fat")[0]),"macros":macros}
+print(json.dumps({"title":(d.get("name") or "Untitled").upper(),"sub":sub,"role":role,"ings":ings,"steps":steps,**m}))'
 }
 
 load_cook(){   # $1=id
@@ -181,7 +200,10 @@ rows=[ings[k:k+cols] for k in range(0,len(ings),cols)]
 subprocess.run([os.environ["EWW"],"update","cook_view=cook","cook_loaded=true",
   "cook_title="+data["title"],"cook_sub="+data["sub"],"cook_role="+data["role"],
   "cook_step="+str(step),"cook_nsteps="+str(n),"cook_step_text="+steps[step],
-  "cook_ning="+str(len(ings)),"cook_ings="+json.dumps(rows)],check=False)'
+  "cook_ning="+str(len(ings)),"cook_ings="+json.dumps(rows),
+  "cook_kcal="+str(data.get("kcal",0)),"cook_pro="+str(data.get("pro",0)),
+  "cook_carb="+str(data.get("carb",0)),"cook_fat="+str(data.get("fat",0)),
+  "cook_macros="+data.get("macros","no")],check=False)'
 }
 
 step(){ local cur; cur=$(cat "$STEPF" 2>/dev/null || echo 0)
