@@ -7,14 +7,23 @@
 #   */10 * * * * /path/to/sync-to-tablet.sh >> ~/sync-tablet.log 2>&1
 set -euo pipefail
 
-TABLET="${TABLET:-minideck@192.168.0.44}"   # set a DHCP reservation so this stops drifting
+TABLET="${TABLET:-minideck@192.168.0.41}"   # set a DHCP reservation so this stops drifting
 STAGING="${STAGING:-$(cd "$(dirname "$0")" && pwd)/library}"
 DEST="${DEST:-Music/}"            # relative to the tablet user's home
 
-# bail quietly if the tablet isn't reachable (don't flush into the void)
-if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$TABLET" true 2>/dev/null; then
-  echo "$(date '+%F %T') tablet unreachable — skipping"; exit 0
+ts() { date '+%F %T'; }
+
+# what's actually waiting to ship — lets the log tell "idle" apart from "broken"
+PENDING=$(find "$STAGING" -mindepth 1 -type f 2>/dev/null | wc -l)
+
+# bail if the tablet isn't reachable (don't flush into the void) — but log WHY,
+# so a run of skips is debuggable (timeout vs. host-key vs. auth vs. DNS) instead
+# of an opaque "unreachable". Capture ssh's own stderr as the reason.
+if ! reason=$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$TABLET" true 2>&1); then
+  echo "$(ts) tablet unreachable [$TABLET] ($PENDING files waiting): ${reason:-no error text} — skipping"
+  exit 0
 fi
+[ "$PENDING" -eq 0 ] && { echo "$(ts) reachable, nothing staged — idle"; exit 0; }
 
 # Break the re-download loop: before we flush, tell Lidarr to unmonitor every album
 # it has fully downloaded. Once flushed, an unmonitored album won't reappear in
@@ -43,7 +52,9 @@ if done:
 PY
 fi
 
-# copy complete albums over, deleting each source file once it's safely transferred
+# copy complete albums over, deleting each source file once it's safely transferred.
+# if rsync fails partway, set -e aborts here and nothing below runs — the unsent
+# remainder stays staged and retries next cycle (rsync already deletes per-file on success).
 rsync -a --remove-source-files --info=stats1 "$STAGING"/ "$TABLET:$DEST"
 
 # prune the now-empty directories rsync leaves behind
@@ -52,4 +63,4 @@ find "$STAGING" -mindepth 1 -type d -empty -delete 2>/dev/null || true
 # refresh the tablet's mpd library so new tracks appear immediately
 ssh "$TABLET" 'export XDG_RUNTIME_DIR=/run/user/$(id -u); mpc update' >/dev/null 2>&1 || true
 
-echo "$(date '+%F %T') shipped + flushed"
+echo "$(ts) shipped + flushed ($PENDING files) -> $TABLET"
