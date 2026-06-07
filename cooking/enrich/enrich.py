@@ -588,14 +588,74 @@ def enrich_food(food, used_units, pt_by_key, tau, dry_run, enriched, review):
     return "written"
 
 
-def run_passB(args):
+def load_pt_by_key():
+    """Map nutrient key -> PropertyType. Returns {} if any of the 6 are missing."""
     pt_by_key = {}
     pts = get_property_types()
     for key in NKEYS:
         pt = pts.get(NAME_BY_KEY[key].lower())
         if pt:
             pt_by_key[key] = pt
-    if len(pt_by_key) < len(NKEYS):
+    return pt_by_key if len(pt_by_key) == len(NKEYS) else {}
+
+
+def atwater_ok(macros):
+    """The deterministic honesty rail: kcal ~= 4P + 4C + 9F (within 40%). Same check as enrich_food."""
+    if "calories" not in macros:
+        return False
+    implied = 4 * macros.get("protein", 0) + 4 * macros.get("carbohydrates", 0) + 9 * macros.get("fat", 0)
+    cal = macros["calories"]
+    return not (max(cal, implied) > 20 and abs(implied - cal) > 0.4 * max(cal, implied))
+
+
+def accept_review(args):
+    """Human-triage path: write the stored candidate macros for the given review ids, bypassing only
+    the subjective conf/cross-source gate. The deterministic atwater rail is RE-checked — a candidate
+    that fails it is refused, so accepting can't push an internally-inconsistent macro set live."""
+    pt_by_key = load_pt_by_key()
+    if not pt_by_key:
+        log("! property types missing — run --setup-properties first"); return 1
+    ids = {int(x) for x in args.accept_review.split(",") if x.strip()}
+    foods = {f["id"]: f for f in api_all("/api/food/")}
+    ings = api_all("/api/ingredient/")
+    units_by_food = {}
+    for ing in ings:
+        f, u = ing.get("food") or {}, ing.get("unit") or {}
+        if f.get("id") and u.get("id"):
+            units_by_food.setdefault(f["id"], {})[u["id"]] = u
+    enriched = load_state("enriched.json", {})
+    review = load_state("review-macros.json", {})
+
+    totals = {"written": 0, "skipped": 0}
+    for fid in sorted(ids):
+        entry = review.get(str(fid))
+        if not entry or not entry.get("macros"):
+            log(f"  - {fid}: not in review queue (or no macros) — skip"); totals["skipped"] += 1; continue
+        name, macros = entry["name"], entry["macros"]
+        if len(macros) < 4 or not atwater_ok(macros):
+            log(f"  - {name} ({fid}): fails atwater/coverage rail — refused"); totals["skipped"] += 1; continue
+        food = foods.get(fid)
+        if not food:
+            log(f"  - {fid}: food no longer exists — skip"); totals["skipped"] += 1; continue
+        wrote, body = write_food_macros(food, macros, None, pt_by_key)
+        if not wrote:
+            log(f"  ! write failed {name}: {json.dumps(body)[:140]}"); totals["skipped"] += 1; continue
+        missing = ensure_conversions(food, list(units_by_food.get(fid, {}).values()), None)
+        enriched[str(fid)] = {"name": name, "macros": macros, "source": entry.get("source", "review") + " (accepted)",
+                              "confidence": 1.0, "fdc_id": None, "missing_conversions": missing,
+                              "ts": int(time.time())}
+        review.pop(str(fid), None)
+        flag = f"  (missing conv: {', '.join(missing)})" if missing else ""
+        log(f"  + {name}: accepted{flag}")
+        totals["written"] += 1
+    save_state("enriched.json", enriched); save_state("review-macros.json", review)
+    log(f"== accept-review done: {totals} ==")
+    return 0
+
+
+def run_passB(args):
+    pt_by_key = load_pt_by_key()
+    if not pt_by_key:
         log("! property types missing — run --setup-properties first"); return 1
     if not USDA_KEY:
         log("! note: no ~/.config/eww/usda-key — USDA skipped, reconcile uses web only")
@@ -655,6 +715,7 @@ def main():
     ap.add_argument("--backfill", action="store_true", help="Pass B over ALL clean foods")
     ap.add_argument("--food", help="enrich only foods whose name contains this (debug)")
     ap.add_argument("--food-id", help="enrich exactly these food ids, comma-separated (debug)")
+    ap.add_argument("--accept-review", help="write stored candidate macros for these review ids (human triage), comma-separated")
     ap.add_argument("--tau", type=float, default=0.7, help="confidence threshold to write (default 0.7)")
     ap.add_argument("--limit", type=int, default=0, help="cap foods processed in Pass B (testing)")
     ap.add_argument("--dry-run", action="store_true", help="match + reconcile, write nothing")
@@ -670,6 +731,8 @@ def main():
         return plan_cleanup()
     if args.apply_cleanup:
         return apply_cleanup()
+    if args.accept_review:
+        return accept_review(args)
     return run_passB(args)
 
 

@@ -92,6 +92,22 @@ fix those by adding a `UnitConversion` by hand. Junk units are already flagged i
 After a backfill, **spot-check** a few recipes' computed `Recipe.food_properties` against the source
 pages' stated nutrition as a sanity gate.
 
+## Triaging the review queue
+`review-macros.json` holds the candidates that were *computed* but not written — they failed the
+write gate on low confidence or cross-source disagreement. After eyeballing a candidate's macros and
+deciding it's correct, **accept** it (writes the stored candidate the same way Pass B would —
+`Food.properties` + `(food,unit)→g` conversions):
+
+```sh
+./enrich.py --accept-review 332,502,78   # write these review ids, then drop them from the queue
+```
+
+Accept still **re-checks the Atwater rail** (`kcal ≈ 4P + 4C + 9F`), so it refuses an internally
+inconsistent candidate even on a manual accept — that catches "right calories, one garbage macro"
+cases (e.g. raw rice carbs on cooked rice). Foods whose candidate is genuinely wrong stay in the
+queue for a hand-fix or re-derivation; compound/non-food names (`"juice and zest of one lemon"`,
+`"sprigs"`) belong in Pass A cleanup, not here.
+
 ## Cadence
 - **Backfill** once over all foods after the cleanup approval.
 - **Incremental** via cron, after the watcher's `*/30` run — Pass B over foods new since last run.
