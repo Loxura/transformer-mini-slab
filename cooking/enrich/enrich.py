@@ -594,6 +594,7 @@ def enrich_food(food, used_units, pt_by_key, tau, dry_run, enriched, review):
     enriched[str(food["id"])] = {"name": name, "macros": macros, "source": source,
                                  "confidence": conf, "fdc_id": fdc_id,
                                  "missing_conversions": missing, "ts": int(time.time())}
+    review.pop(str(food["id"]), None)              # a re-run that now writes clears the stale review entry
     flag = f"  (missing conv: {', '.join(missing)})" if missing else ""
     log(f"  + {name}: {source} conf {conf:.2f}{flag}")
     return "written"
